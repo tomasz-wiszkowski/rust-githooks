@@ -1,0 +1,86 @@
+use std::collections::HashMap;
+use std::fs;
+use std::cell::RefCell;
+use serde_derive::Deserialize;
+use anyhow::{Context, Result};
+
+use super::hook::Hook;
+use super::shell_action::ShellAction;
+use super::shell_action::RunType;
+
+const CONFIG_RUN_TYPE_PER_FILE: &str = "perFile";
+const CONFIG_RUN_TYPE_PER_COMMIT: &str = "perCommit";
+
+#[derive(Deserialize)]
+struct ActionConfig {
+    name: String,
+    run_type: String,
+    priority: i32,
+    file_pattern: String,
+    shell_cmd: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct HookConfig {
+    name: String,
+    actions: HashMap<String, ActionConfig>,
+}
+
+#[derive(Deserialize)]
+struct TopConfig {
+    version: i32,
+    hooks: HashMap<String, HookConfig>,
+}
+
+pub fn load_config_file() -> Result<RefCell<HashMap<String, Hook>>> {
+
+    let home_dir = dirs::home_dir().context("Unable to query user home directory")?;
+    let config_path = home_dir.join(".githooks.json");
+
+    let content = match fs::read_to_string(&config_path) {
+        Ok(content) => content,
+        Err(_) => return Ok(RefCell::new(HashMap::new())),
+    };
+
+    let config: TopConfig = serde_json::from_str(&content)
+        .context("Malformed config file")?;
+
+    if config.version == 0 {
+        return Ok(RefCell::new(HashMap::new()));
+    }
+
+    anyhow::ensure!(config.version == 1, "Unsupported config file version {}", config.version);
+
+    let mut result = HashMap::new();
+
+    for (ck, cv) in config.hooks {
+        anyhow::ensure!(!ck.is_empty(), "Invalid category ID");
+        anyhow::ensure!(!cv.name.is_empty(), "Invalid category name for category {}", ck);
+
+        let mut hooks = Vec::new();
+
+        for (hk, hv) in cv.actions {
+            anyhow::ensure!(!hk.is_empty(), "Invalid hook ID in category {}", ck);
+            anyhow::ensure!(!hv.name.is_empty(), "Invalid hook name for hook {}", hk);
+            anyhow::ensure!(!hv.shell_cmd.is_empty(), "Invalid shell command for hook {}", hk);
+
+            let run_type = match hv.run_type.as_str() {
+                CONFIG_RUN_TYPE_PER_COMMIT => RunType::PerCommit,
+                CONFIG_RUN_TYPE_PER_FILE => RunType::PerFile,
+                _ => anyhow::bail!("Invalid runType {} for hook {}", hv.run_type, hk),
+            };
+
+            let hook = ShellAction::new(
+                &hk, &hv.name, hv.priority, &hv.file_pattern, hv.shell_cmd, run_type
+            )?;
+
+            hooks.push(hook);
+        }
+
+        let category = Hook::new(ck.clone(), cv.name, hooks);
+
+        result.insert(ck, category);
+    }
+
+    Ok(RefCell::new(result))
+}

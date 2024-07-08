@@ -38,9 +38,9 @@ impl GitConfig {
         self.config.borrow().get_entry(&full_key).is_ok()
     }
 
-    pub fn get_or_default(&self, key: &str, default: &str) -> Result<String, Box<dyn Error>> {
+    pub fn get_or_default(&self, key: &str, default: &str) -> String {
         let full_key = format!("{}.{}.{}", self.section, self.hook, key);
-        Ok(self.config.borrow().get_string(&full_key).unwrap_or(default.to_string()))
+        self.config.borrow().get_string(&full_key).unwrap_or(default.to_string())
     }
 
     pub fn set(&mut self, key: &str, value: &str) -> Result<(), Box<dyn Error>> {
