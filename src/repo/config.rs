@@ -5,7 +5,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 pub struct GitConfigManager {
-    repo: Rc<Repository>,
     config: Rc<RefCell<Config>>,
 }
 
@@ -18,7 +17,6 @@ pub struct GitConfig {
 impl GitConfigManager {
     pub fn new(repo: &Rc<Repository>) -> Result<Self> {
         Ok(GitConfigManager {
-            repo: repo.clone(),
             config: Rc::new(RefCell::new(repo.config()?))
         })
     }
@@ -33,11 +31,6 @@ impl GitConfigManager {
 }
 
 impl GitConfig {
-    pub fn has(&self, key: &str) -> bool {
-        let full_key = format!("{}.{}.{}", self.section, self.hook, key);
-        self.config.borrow().get_entry(&full_key).is_ok()
-    }
-
     pub fn get_or_default(&self, key: &str, default: &str) -> String {
         let full_key = format!("{}.{}.{}", self.section, self.hook, key);
         self.config.borrow().get_string(&full_key).unwrap_or(default.to_string())

@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
-use std::cell::RefCell;
 use serde_derive::Deserialize;
-use anyhow::{Context, Result};
+use anyhow::{Context, Result,bail};
 
 use super::hook::Hook;
 use super::shell_action::ShellAction;
@@ -32,21 +31,18 @@ struct TopConfig {
     hooks: HashMap<String, HookConfig>,
 }
 
-pub fn load_config_file() -> Result<RefCell<HashMap<String, Hook>>> {
+pub fn load_config_file() -> Result<HashMap<String, Hook>> {
 
     let home_dir = dirs::home_dir().context("Unable to query user home directory")?;
     let config_path = home_dir.join(".githooks.json");
 
-    let content = match fs::read_to_string(&config_path) {
-        Ok(content) => content,
-        Err(_) => return Ok(RefCell::new(HashMap::new())),
-    };
+    let content = fs::read_to_string(&config_path)?;
 
     let config: TopConfig = serde_json::from_str(&content)
         .context("Malformed config file")?;
 
     if config.version == 0 {
-        return Ok(RefCell::new(HashMap::new()));
+        bail!("Unsupported config file version");
     }
 
     anyhow::ensure!(config.version == 1, "Unsupported config file version {}", config.version);
@@ -82,5 +78,5 @@ pub fn load_config_file() -> Result<RefCell<HashMap<String, Hook>>> {
         result.insert(ck, category);
     }
 
-    Ok(RefCell::new(result))
+    Ok(result)
 }

@@ -34,4 +34,8 @@ impl Hook {
             action.set_config(store.get_config_for(id, action.id()));
         })
     }
+
+    pub fn sort_actions(&mut self) {
+        self.actions.sort_by_key(|a| a.priority());
+    }
 }

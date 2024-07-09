@@ -7,12 +7,9 @@ use std::env;
 use std::fs;
 use std::os::unix::fs as unix_fs;
 use std::path::Path;
-use anyhow::bail;
-use hooks::hook::Hook;
+use hooks::hooks::Hooks;
 use hooks::hooks::HooksExt;
 use repo::repo::GitRepo;
-use std::cell::Ref;
-use ui::hook_tree_view::HooksTreeView;
 
 use anyhow::{Context, Result};
 use crossterm::event::{self, Event, KeyCode};
@@ -23,10 +20,16 @@ use tui::{
 };
 
 
-fn open_repo() -> Result<GitRepo> {
-    let r = GitRepo::new()?;
-    hooks::hooks::get_hooks().borrow_mut().set_config_store(r.get_config_manager());
-    Ok(r)
+struct Data {
+    repo: GitRepo,
+    hooks: Hooks,
+}
+
+fn open_repo() -> Result<Data> {
+    let repo = GitRepo::new()?;
+    let mut hooks = hooks::hooks::get_hooks();
+    hooks.set_config_store(repo.get_config_manager());
+    Ok(Data{ repo, hooks })
 }
 
 fn main() -> Result<()> {
@@ -34,32 +37,32 @@ fn main() -> Result<()> {
 
     let args: Vec<String> = env::args().collect();
     let self_name = Path::new(&args[0]).file_name().unwrap().to_str().unwrap();
-    let hks = hooks::hooks::get_hooks();
+    let data = open_repo()?;
 
-    if let Some(h) = hks.borrow().get(self_name) {
+    if data.hooks.contains_key(self_name) {
         let args = Vec::from(&args[1..]);
-        run_hooks(h, args)
+        run_hooks(data, self_name, args)
     } else if args.len() == 1 {
-        show_config()
-    } else if let Some(h) = hks.borrow().get(&args[1]) {
+        show_config(data)
+    } else if data.hooks.contains_key(&args[1]) {
+        let hook_name = &args[1];
         let args = Vec::from(&args[2..]);
-        run_hooks(h, args)
+        run_hooks(data, hook_name, args)
     } else if args[1] == "install" {
-        install()
+        install(data)
     } else {
         anyhow::bail!("Unknown hook type {}", args[1]);
     }
 }
 
-fn run_hooks(hook: &Hook, args: Vec<String>) -> Result<()> {
-    let repo = open_repo()?;
-    let files = repo.get_list_of_new_and_modified_files()?;
+fn run_hooks(data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
+    let hook = data.hooks.get(hook_name).context(format!("Find hook for {}", hook_name))?;
+    let files = data.repo.get_list_of_new_and_modified_files()?;
 
-    env::set_current_dir(repo.work_dir().context("Could not get workdir root")?)
+    env::set_current_dir(data.repo.work_dir().context("Could not get workdir root")?)
         .context("Run: cannot open work directory")?;
 
     let actions = hook.actions();
-//    actions.sort_by_key(|a| a.priority());
     for h in actions {
         h.run(&files, &args)?;
     }
@@ -67,16 +70,12 @@ fn run_hooks(hook: &Hook, args: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-fn show_config() -> Result<()> {
-    let repo = open_repo()?;
-
+fn show_config(data: Data) -> Result<()> {
     let stdout = std::io::stdout();
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
     terminal.clear()?;
-
-//    let tree = HooksTreeView::new(hooks::hooks::get_hooks())?;
 
     loop {
         terminal.draw(|f| {
@@ -104,18 +103,16 @@ fn show_config() -> Result<()> {
     Ok(())
 }
 
-fn install() -> Result<()> {
+fn install(data: Data) -> Result<()> {
     let self_absolute_path = env::current_exe().context("Install: cannot locate self")?;
 
-    let repo = open_repo()?;
-    let config_dir = repo.config_dir();
+    let config_dir = data.repo.config_dir();
 
     fs::create_dir_all(config_dir.join("hooks")).context("Install: failed to create hooks directory")?;
 
     let hook_dir = config_dir.join("hooks");
 
-    let hooks = hooks::hooks::get_hooks();
-        for (_, hook) in hooks.borrow().iter() {
+        for (_, hook) in data.hooks.iter() {
             println!(
                 "Installing {} in {} pointing to {}",
                 hook.id(),
@@ -132,6 +129,6 @@ fn install() -> Result<()> {
                 .context(format!("Install: failed to install hook {}", hook.name()))?;
         }
 
-    show_config()
+    show_config(data)
 }
 
