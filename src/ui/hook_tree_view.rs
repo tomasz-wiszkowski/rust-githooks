@@ -14,7 +14,7 @@ pub struct HookTreeNodeData {
 }
 
 pub struct HooksTreeView {
-    data: Hooks,
+    hooks: Hooks,
 }
 
 impl HooksTreeView {
@@ -87,8 +87,24 @@ impl HooksTreeView {
         Ok(view)
     }
  */
-    pub fn new(data: Hooks) -> Result<Self> {
-        bail!("Not implemented");
+    pub fn widget(&self) -> List {
+        let mut items = vec![];
+
+        for (_, hook) in self.hooks.iter() {
+            let hook_item = ListItem::new(format!("[ ] {}", hook.name()));
+            items.push(hook_item);
+
+            for action in hook.actions().iter() {
+                let action_item = ListItem::new(format!("    [ ] {}", action.name()));
+                items.push(action_item);
+            }
+        }
+
+        List::new(items)
+    }
+
+    pub fn new(hooks: Hooks) -> Self {
+        Self { hooks }
     }
 }
 

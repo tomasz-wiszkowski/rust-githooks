@@ -5,12 +5,9 @@ use anyhow::{Context, Result,bail};
 
 use super::hook::Hook;
 use super::shell_action::ShellAction;
-use super::shell_action::RunType;
-
-const CONFIG_RUN_TYPE_PER_FILE: &str = "perFile";
-const CONFIG_RUN_TYPE_PER_COMMIT: &str = "perCommit";
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ActionConfig {
     name: String,
     run_type: String,
@@ -20,12 +17,14 @@ struct ActionConfig {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct HookConfig {
     name: String,
     actions: HashMap<String, ActionConfig>,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct TopConfig {
     version: i32,
     hooks: HashMap<String, HookConfig>,
@@ -60,14 +59,8 @@ pub fn load_config_file() -> Result<HashMap<String, Hook>> {
             anyhow::ensure!(!hv.name.is_empty(), "Invalid hook name for hook {}", hk);
             anyhow::ensure!(!hv.shell_cmd.is_empty(), "Invalid shell command for hook {}", hk);
 
-            let run_type = match hv.run_type.as_str() {
-                CONFIG_RUN_TYPE_PER_COMMIT => RunType::PerCommit,
-                CONFIG_RUN_TYPE_PER_FILE => RunType::PerFile,
-                _ => anyhow::bail!("Invalid runType {} for hook {}", hv.run_type, hk),
-            };
-
             let hook = ShellAction::new(
-                &hk, &hv.name, hv.priority, &hv.file_pattern, hv.shell_cmd, run_type
+                &hk, &hv.name, hv.priority, &hv.file_pattern, hv.shell_cmd, hv.run_type
             )?;
 
             hooks.push(hook);

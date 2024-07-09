@@ -8,17 +8,13 @@ use crate::repo::config::GitConfig;
 
 use super::shell_utils::{self, Substitution};
 
-#[derive(Clone, Copy, PartialEq, Deserialize)]
-pub enum RunType {
-    PerCommit,
-    PerFile,
-}
-
 const KEY_ENABLED: &str = "enabled";
 const KEY_COMMAND: &str = "cmd";
 const VALUE_TRUE: &str = "true";
 const PLACEHOLDER_SINGLE_FILE: &str = "<file>";
 const PLACEHOLDER_GIT_ARGS: &str = "<args>";
+const RUN_TYPE_PER_FILE: &str = "perFile";
+const RUN_TYPE_PER_COMMIT: &str = "perCommit";
 
 #[derive(Deserialize)]
 pub struct ShellAction {
@@ -28,7 +24,7 @@ pub struct ShellAction {
     #[serde(with = "serde_regex")]
     file_pattern: Regex,
     shell_command: Vec<String>,
-    run_type: RunType,
+    run_type: String,
     selected: bool,
     available: bool,
 
@@ -37,7 +33,7 @@ pub struct ShellAction {
 }
 
 impl ShellAction {
-    pub fn new(id: &str, name: &str, priority: i32, file_pattern: &str, shell_cmd: Vec<String>, run_type: RunType) -> Result<Self> {
+    pub fn new(id: &str, name: &str, priority: i32, file_pattern: &str, shell_cmd: Vec<String>, run_type: String) -> Result<Self> {
         Ok(ShellAction {
             id: id.to_string(),
             name: name.to_string(),
@@ -97,13 +93,14 @@ impl ShellAction {
             substitutions.insert(PLACEHOLDER_SINGLE_FILE.to_owned(), Substitution::Scalar(file.clone()));
             let cmd = shell_utils::substitute_command_line(&self.shell_command, &substitutions);
 
-            match self.run_type {
-                RunType::PerCommit => println!("Running {}", self.name),
-                RunType::PerFile => println!("Running {} on {}", self.name, file),
+            match self.run_type.as_str() {
+                RUN_TYPE_PER_COMMIT => println!("Running {}", self.name),
+                RUN_TYPE_PER_FILE => println!("Running {} on {}", self.name, file),
+                _ => anyhow::bail!("Invalid runType {} for action {}", self.run_type, self.name),
             }
 
             run_shell_command(&cmd)?;
-            if self.run_type == RunType::PerCommit {
+            if self.run_type == RUN_TYPE_PER_COMMIT {
                 return Ok(());
             }
         }

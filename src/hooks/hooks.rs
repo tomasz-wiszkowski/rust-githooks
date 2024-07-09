@@ -12,7 +12,7 @@ pub type Hooks = HashMap<String, Hook>;
 // Upon first call the function will attempt to load user-defined hooks from
 // the ~/.githooks.json config file.
 pub fn get_hooks() -> Hooks {
-    let mut hooks = load_config_file().unwrap_or_default();
+    let mut hooks = load_config_file().unwrap();
     hooks.iter_mut().for_each(|(_, h)| h.sort_actions());
     hooks
 }

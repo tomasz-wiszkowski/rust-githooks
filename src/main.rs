@@ -7,9 +7,11 @@ use std::env;
 use std::fs;
 use std::os::unix::fs as unix_fs;
 use std::path::Path;
+use crossterm::terminal::disable_raw_mode;
 use hooks::hooks::Hooks;
 use hooks::hooks::HooksExt;
 use repo::repo::GitRepo;
+use ui::hook_tree_view::HooksTreeView;
 
 use anyhow::{Context, Result};
 use crossterm::event::{self, Event, KeyCode};
@@ -71,17 +73,22 @@ fn run_hooks(data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
 }
 
 fn show_config(data: Data) -> Result<()> {
-    let stdout = std::io::stdout();
-    let backend = CrosstermBackend::new(stdout);
+    crossterm::terminal::enable_raw_mode()?;
+    let backend = CrosstermBackend::new(std::io::stdout());
     let mut terminal = Terminal::new(backend)?;
 
     terminal.clear()?;
+
+    let tree = HooksTreeView::new(data.hooks);
 
     loop {
         terminal.draw(|f| {
             let size = f.size();
             let block = Block::default().title("Hooks").borders(Borders::ALL);
-            f.render_widget(block, size);
+//            f.render_widget(block, size);
+            f.render_widget(tree.widget(), size);
+
+
             /*
             let items: Vec<ListItem> = tree
                 .items()
@@ -100,6 +107,7 @@ fn show_config(data: Data) -> Result<()> {
         }
     }
 
+    crossterm::terminal::disable_raw_mode()?;
     Ok(())
 }
 
