@@ -51,7 +51,9 @@ fn main() -> Result<()> {
     }
 }
 
-fn run_hooks(data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
+fn run_hooks(mut data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
+    data.hooks.sort_by_priority();
+
     let hook = data
         .hooks
         .get(hook_name)
@@ -69,7 +71,9 @@ fn run_hooks(data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-fn show_config(data: Data) -> Result<()> {
+fn show_config(mut data: Data) -> Result<()> {
+    data.hooks.sort_by_name();
+
     crossterm::terminal::enable_raw_mode()?;
     let backend = CrosstermBackend::new(std::io::stdout());
     let mut terminal = Terminal::new(backend)?;

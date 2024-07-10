@@ -41,7 +41,11 @@ impl Hook {
         Ok(())
     }
 
-    pub fn sort_actions(&mut self) {
+    pub fn sort_by_priority(&mut self) {
         self.actions.sort_by_key(|a| a.priority());
+    }
+
+    pub fn sort_by_name(&mut self) {
+        self.actions.sort_by(|a, b| a.name().cmp(b.name()));
     }
 }
