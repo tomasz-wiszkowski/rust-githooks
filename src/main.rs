@@ -3,24 +3,18 @@ mod hooks;
 mod repo;
 mod ui;
 
+use hooks::hooks::Hooks;
+use hooks::hooks::HooksExt;
+use repo::repo::GitRepo;
 use std::env;
 use std::fs;
 use std::os::unix::fs as unix_fs;
 use std::path::Path;
-use crossterm::terminal::disable_raw_mode;
-use hooks::hooks::Hooks;
-use hooks::hooks::HooksExt;
-use repo::repo::GitRepo;
 use ui::hook_tree_view::HooksTreeView;
 
 use anyhow::{Context, Result};
 use crossterm::event::{self, Event, KeyCode};
-use tui::{
-    backend::CrosstermBackend,
-    widgets::{Block, Borders, List, ListItem},
-    Terminal,
-};
-
+use tui::{backend::CrosstermBackend, Terminal};
 
 struct Data {
     repo: GitRepo,
@@ -31,7 +25,7 @@ fn open_repo() -> Result<Data> {
     let repo = GitRepo::new()?;
     let mut hooks = hooks::hooks::get_hooks();
     hooks.set_config_store(repo.get_config_manager());
-    Ok(Data{ repo, hooks })
+    Ok(Data { repo, hooks })
 }
 
 fn main() -> Result<()> {
@@ -58,7 +52,10 @@ fn main() -> Result<()> {
 }
 
 fn run_hooks(data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
-    let hook = data.hooks.get(hook_name).context(format!("Find hook for {}", hook_name))?;
+    let hook = data
+        .hooks
+        .get(hook_name)
+        .context(format!("Find hook for {}", hook_name))?;
     let files = data.repo.get_list_of_new_and_modified_files()?;
 
     env::set_current_dir(data.repo.work_dir().context("Could not get workdir root")?)
@@ -84,7 +81,6 @@ fn show_config(data: Data) -> Result<()> {
         terminal.draw(|f| {
             let size = f.size();
             f.render_widget(tree.widget(), size);
-
         })?;
 
         if let Event::Key(key) = event::read()? {
@@ -116,27 +112,28 @@ fn install(data: Data) -> Result<()> {
 
     let config_dir = data.repo.config_dir();
 
-    fs::create_dir_all(config_dir.join("hooks")).context("Install: failed to create hooks directory")?;
+    fs::create_dir_all(config_dir.join("hooks"))
+        .context("Install: failed to create hooks directory")?;
 
     let hook_dir = config_dir.join("hooks");
 
-        for (_, hook) in data.hooks.iter() {
-            println!(
-                "Installing {} in {} pointing to {}",
-                hook.id(),
-                hook_dir.display(),
-                self_absolute_path.display()
-            );
+    for (_, hook) in data.hooks.iter() {
+        println!(
+            "Installing {} in {} pointing to {}",
+            hook.id(),
+            hook_dir.display(),
+            self_absolute_path.display()
+        );
 
-            let hook_path = hook_dir.join(hook.id());
-            if hook_path.exists() {
-                fs::remove_file(&hook_path).context(format!("Install: failed to remove hook {}", hook.name()))?;
-            }
-
-            unix_fs::symlink(&self_absolute_path, &hook_path)
-                .context(format!("Install: failed to install hook {}", hook.name()))?;
+        let hook_path = hook_dir.join(hook.id());
+        if hook_path.exists() {
+            fs::remove_file(&hook_path)
+                .context(format!("Install: failed to remove hook {}", hook.name()))?;
         }
+
+        unix_fs::symlink(&self_absolute_path, &hook_path)
+            .context(format!("Install: failed to install hook {}", hook.name()))?;
+    }
 
     show_config(data)
 }
-

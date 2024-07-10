@@ -1,7 +1,7 @@
+use anyhow::{Context, Result};
+use std::env;
 use std::path::PathBuf;
 use std::process::Command;
-use std::env;
-use anyhow::{Result, Context};
 use which;
 
 // Resolve executable name into full path.
@@ -13,9 +13,11 @@ pub fn get_shell_command_absolute_path(executable_name: &str) -> Option<PathBuf>
         return Some(path);
     }
 
-    let work_dir = env::current_dir().context("Resolve: cannot determine current dir").ok()?;
+    let work_dir = env::current_dir()
+        .context("Resolve: cannot determine current dir")
+        .ok()?;
     let abs_path = work_dir.join(executable_name);
-    
+
     if abs_path.exists() {
         Some(abs_path)
     } else {
@@ -46,7 +48,7 @@ pub fn run_shell_command(args: &[String]) -> Result<(String, String)> {
 
 pub enum Substitution<'a> {
     Scalar(String),
-    Array(&'a Vec<String>)
+    Array(&'a Vec<String>),
 }
 
 // Substitute arguments and construct a command line.
@@ -55,7 +57,10 @@ pub enum Substitution<'a> {
 // corresponding entry is found, the argument is replaced with the
 // map value. Replaces single strings and string arrays.
 // Returns resulting CommandLine.
-pub fn substitute_command_line(input_cmd_line: &[String], substitute_args: &std::collections::HashMap<String, Substitution>) -> Vec<String> {
+pub fn substitute_command_line(
+    input_cmd_line: &[String],
+    substitute_args: &std::collections::HashMap<String, Substitution>,
+) -> Vec<String> {
     let mut out = Vec::new();
 
     for arg in input_cmd_line {
@@ -71,4 +76,3 @@ pub fn substitute_command_line(input_cmd_line: &[String], substitute_args: &std:
     }
     out
 }
-

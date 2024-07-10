@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::repo::config::GitConfigManager;
-use super::hook::Hook;
 use super::config::load_config_file;
+use super::hook::Hook;
+use crate::repo::config::GitConfigManager;
 
 // A map of all known and user-defined hooks and their corresponding actions.
 // The key is the hook name, and the value is the corresponding Hook definition.
@@ -28,4 +28,3 @@ impl HooksExt for Hooks {
         self.iter_mut().for_each(|(_, h)| h.set_config_store(s));
     }
 }
-

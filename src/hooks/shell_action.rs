@@ -1,8 +1,8 @@
-use std::path::Path;
+use anyhow::{anyhow, Result};
 use regex::Regex;
-use anyhow::{Result, anyhow};
-use std::process::Command;
 use serde_derive::Deserialize;
+use std::path::Path;
+use std::process::Command;
 
 use crate::repo::config::GitConfig;
 
@@ -28,12 +28,19 @@ pub struct ShellAction {
     selected: bool,
     available: bool,
 
-    #[serde(skip_deserializing)] 
+    #[serde(skip_deserializing)]
     config: Option<GitConfig>,
 }
 
 impl ShellAction {
-    pub fn new(id: &str, name: &str, priority: i32, file_pattern: &str, shell_cmd: Vec<String>, run_type: String) -> Result<Self> {
+    pub fn new(
+        id: &str,
+        name: &str,
+        priority: i32,
+        file_pattern: &str,
+        shell_cmd: Vec<String>,
+        run_type: String,
+    ) -> Result<Self> {
         Ok(ShellAction {
             id: id.to_string(),
             name: name.to_string(),
@@ -76,7 +83,11 @@ impl ShellAction {
             return Ok(());
         }
         if !self.is_available() {
-            println!("Cannot run {} - missing command {}", self.name(), self.shell_command[0]);
+            println!(
+                "Cannot run {} - missing command {}",
+                self.name(),
+                self.shell_command[0]
+            );
             return Ok(());
         }
 
@@ -90,7 +101,10 @@ impl ShellAction {
                 continue;
             }
 
-            substitutions.insert(PLACEHOLDER_SINGLE_FILE.to_owned(), Substitution::Scalar(file.clone()));
+            substitutions.insert(
+                PLACEHOLDER_SINGLE_FILE.to_owned(),
+                Substitution::Scalar(file.clone()),
+            );
             let cmd = shell_utils::substitute_command_line(&self.shell_command, &substitutions);
 
             match self.run_type.as_str() {
@@ -132,7 +146,6 @@ impl ShellAction {
         self.set_shell_cmd(&cfg.get_or_default(KEY_COMMAND, &self.shell_command[0]));
         self.config = Some(cfg);
     }
-
 }
 
 trait Config {

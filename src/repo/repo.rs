@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use git2::{Repository, Delta};
+use git2::{Delta, Repository};
 use std::path::Path;
 use std::rc::Rc;
 
@@ -16,10 +16,7 @@ impl GitRepo {
         let repo = Rc::new(Repository::open_from_env()?);
         let config = GitConfigManager::new(&repo)?;
 
-        Ok(GitRepo {
-            repo,
-            config,
-        })
+        Ok(GitRepo { repo, config })
     }
 
     pub fn work_dir(&self) -> Option<&Path> {
@@ -48,16 +45,23 @@ impl GitRepo {
         let tree1 = commit.tree().ok();
         let tree2 = parent.tree().ok();
 
-        let changes = self.repo.diff_tree_to_tree(tree2.as_ref(), tree1.as_ref(), None)?;
+        let changes = self
+            .repo
+            .diff_tree_to_tree(tree2.as_ref(), tree1.as_ref(), None)?;
 
         let mut paths = Vec::new();
         for delta in changes.deltas() {
             let action = delta.status();
             match action {
                 Delta::Deleted => continue,
-                Delta::Added | Delta::Modified => {
-                    paths.push(delta.new_file().path().unwrap().to_string_lossy().to_string())
-                }
+                Delta::Added | Delta::Modified => paths.push(
+                    delta
+                        .new_file()
+                        .path()
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string(),
+                ),
                 _ => {}
             }
         }

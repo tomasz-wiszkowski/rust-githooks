@@ -1,8 +1,8 @@
 use anyhow::Result;
-use git2::{Repository, Config};
+use git2::{Config, Repository};
+use std::cell::RefCell;
 use std::error::Error;
 use std::rc::Rc;
-use std::cell::RefCell;
 
 pub struct GitConfigManager {
     config: Rc<RefCell<Config>>,
@@ -17,7 +17,7 @@ pub struct GitConfig {
 impl GitConfigManager {
     pub fn new(repo: &Rc<Repository>) -> Result<Self> {
         Ok(GitConfigManager {
-            config: Rc::new(RefCell::new(repo.config()?))
+            config: Rc::new(RefCell::new(repo.config()?)),
         })
     }
 
@@ -33,7 +33,10 @@ impl GitConfigManager {
 impl GitConfig {
     pub fn get_or_default(&self, key: &str, default: &str) -> String {
         let full_key = format!("{}.{}.{}", self.section, self.hook, key);
-        self.config.borrow().get_string(&full_key).unwrap_or(default.to_string())
+        self.config
+            .borrow()
+            .get_string(&full_key)
+            .unwrap_or(default.to_string())
     }
 
     pub fn set(&mut self, key: &str, value: &str) -> Result<(), Box<dyn Error>> {
@@ -48,4 +51,3 @@ impl GitConfig {
         Ok(())
     }
 }
-

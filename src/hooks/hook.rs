@@ -1,7 +1,7 @@
 use serde_derive::Deserialize;
 
-use crate::repo::config::GitConfigManager;
 use super::shell_action::ShellAction;
+use crate::repo::config::GitConfigManager;
 
 #[derive(Deserialize)]
 // #[serde(tag = "type", rename_all = "camelCase")]
@@ -28,7 +28,7 @@ impl Hook {
         &self.actions
     }
 
-    pub fn actions_mut(&mut self) -> &mut[ShellAction] {
+    pub fn actions_mut(&mut self) -> &mut [ShellAction] {
         &mut self.actions
     }
 
