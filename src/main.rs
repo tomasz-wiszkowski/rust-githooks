@@ -76,37 +76,37 @@ fn show_config(data: Data) -> Result<()> {
     crossterm::terminal::enable_raw_mode()?;
     let backend = CrosstermBackend::new(std::io::stdout());
     let mut terminal = Terminal::new(backend)?;
-
     terminal.clear()?;
 
-    let tree = HooksTreeView::new(data.hooks);
+    let mut tree = HooksTreeView::new(data.hooks);
 
     loop {
         terminal.draw(|f| {
             let size = f.size();
-            let block = Block::default().title("Hooks").borders(Borders::ALL);
-//            f.render_widget(block, size);
             f.render_widget(tree.widget(), size);
 
-
-            /*
-            let items: Vec<ListItem> = tree
-                .items()
-                .iter()
-                .map(|i| ListItem::new(i.to_string()))
-                .collect();
-            let list = List::new(items).block(Block::default().borders(Borders::NONE));
-            f.render_widget(list, size);
-            */
         })?;
 
         if let Event::Key(key) = event::read()? {
             if key.code == KeyCode::Esc {
                 break;
             }
+
+            if key.code == KeyCode::Up {
+                tree.select_prev_item();
+            }
+
+            if key.code == KeyCode::Down {
+                tree.select_next_item();
+            }
+
+            if key.code == KeyCode::Char(' ') {
+                tree.toggle_selected();
+            }
         }
     }
 
+    terminal.clear();
     crossterm::terminal::disable_raw_mode()?;
     Ok(())
 }

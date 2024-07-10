@@ -1,8 +1,8 @@
 use anyhow::Result;
 use anyhow::bail;
 use tui::{
-    widgets::{List, ListItem},
-    style::{Color, Style},
+    widgets::{Block, Borders, List, ListItem},
+    style::{Color, Style, Modifier},
 };
 use crate::hooks::hook::Hook;
 use crate::hooks::hooks::Hooks;
@@ -13,8 +13,30 @@ pub struct HookTreeNodeData {
     action: Option<Box<ShellAction>>,
 }
 
+enum ListElement {
+    Space(ListItem<'static>),
+    Category(ListItem<'static>, String),
+    Action(ListItem<'static>, String, usize)
+}
+
+impl From<&ListElement> for ListItem<'static> {
+    fn from(value: &ListElement) -> Self {
+        match value {
+            ListElement::Space(e) => e,
+            ListElement::Category(e, _) => e,
+            ListElement::Action(e, _, _) => e,
+        }.clone()
+    }
+}
+
 pub struct HooksTreeView {
     hooks: Hooks,
+
+    items: Vec<ListElement>,
+    selected: usize,
+
+    style_selected: Style,
+    style_deselected: Style,
 }
 
 impl HooksTreeView {
@@ -52,18 +74,6 @@ impl HooksTreeView {
         }
     }
 
-    fn update_tree_node(&self, action: &Box<dyn Action>, node: &mut TreeItem) {
-        let marker = if !action.is_selected() {
-            ' '
-        } else if !action.is_available() {
-            '✘'
-        } else {
-            '✔'
-        };
-
-        node.text = format!("[{}] {}", marker, action.name());
-    }
-
     fn on_tree_node_selected(&mut self, node: &mut TreeItem) {
         let reference = node.data.as_ref().unwrap().downcast_ref::<HookTreeNodeData>().unwrap();
 
@@ -87,24 +97,107 @@ impl HooksTreeView {
         Ok(view)
     }
  */
-    pub fn widget(&self) -> List {
+    fn space_tree_node() -> ListElement {
+        ListElement::Space(ListItem::new(" "))
+    }
+
+    fn category_tree_node(hook: &Hook) -> ListElement {
+        ListElement::Category(ListItem::new(format!("{} - {}", hook.id(), hook.name())), hook.id().into())
+    }
+
+    fn action_tree_node(category_id: &str, index: usize, action: &ShellAction) -> ListElement {
+        let marker = if !action.is_selected() {
+            ' '
+        } else if !action.is_available() {
+            '✘'
+        } else {
+            '✔'
+        };
+
+        ListElement::Action(ListItem::new(format!("    [{}] {}", marker, action.name())), category_id.into(), index)
+    }
+
+    fn build_items_list(hooks: &Hooks) -> Vec<ListElement> {
         let mut items = vec![];
 
-        for (_, hook) in self.hooks.iter() {
-            let hook_item = ListItem::new(format!("[ ] {}", hook.name()));
-            items.push(hook_item);
+        for (_, hook) in hooks.iter() {
+            items.push(Self::space_tree_node());
+            items.push(Self::category_tree_node(hook));
 
-            for action in hook.actions().iter() {
-                let action_item = ListItem::new(format!("    [ ] {}", action.name()));
-                items.push(action_item);
+            for (index, action) in hook.actions().iter().enumerate() {
+                items.push(Self::action_tree_node(hook.id(), index, action));
             }
         }
 
+        items
+    }
+
+    pub fn widget(&self) -> List {
+        let mut items = vec![];
+
+        for (index, elem) in self.items.iter().enumerate() {
+            let mut item = ListItem::from(elem);
+            if index == self.selected {
+                item = item.style(self.style_selected);
+            } else {
+                item = item.style(self.style_deselected);
+            }
+            items.push(item);
+        }
         List::new(items)
     }
 
+    pub fn select_prev_item(&mut self) {
+        let mut next_item = (self.selected as i32) - 1;
+        while next_item >= 0 {
+            match self.items.get(next_item as usize).unwrap() {
+                ListElement::Category(_, _) | ListElement::Action(_, _, _) => {
+                    self.selected = next_item as usize;
+                    break;
+                },
+                _ => next_item -= 1
+            }
+        }
+    }
+
+    pub fn select_next_item(&mut self) {
+        let mut next_item = self.selected + 1;
+        while next_item < self.items.len() {
+            match self.items.get(next_item).unwrap() {
+                ListElement::Category(_, _) | ListElement::Action(_, _, _) => {
+                    self.selected = next_item;
+                    break;
+                },
+                _ => next_item += 1
+            }
+        }
+    }
+
+    pub fn toggle_selected(&mut self) {
+        let ListElement::Action(_, category_id, index) = self.items.get(self.selected).unwrap() else {
+            return;
+        };
+
+        let index = *index;
+
+        let Some(category) = self.hooks.get_mut(category_id) else {
+            return;
+        };
+
+        let Some(action) = category.actions_mut().get_mut(index) else {
+            return;
+        };
+
+        action.set_selected(!action.is_selected());
+
+        self.items[self.selected] = Self::action_tree_node(category_id, index, action);
+    }
+
     pub fn new(hooks: Hooks) -> Self {
-        Self { hooks }
+        let style_deselected = Style::default().fg(Color::DarkGray);
+        let style_selected = Style::default().add_modifier(Modifier::BOLD);
+        let items = Self::build_items_list(&hooks);
+        Self { hooks, items, selected: 0usize, style_selected, style_deselected }
     }
 }
 

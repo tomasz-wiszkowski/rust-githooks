@@ -28,6 +28,10 @@ impl Hook {
         &self.actions
     }
 
+    pub fn actions_mut(&mut self) -> &mut[ShellAction] {
+        &mut self.actions
+    }
+
     pub fn set_config_store(&mut self, store: &GitConfigManager) {
         let id = &self.id;
         self.actions.iter_mut().for_each(|action| {
