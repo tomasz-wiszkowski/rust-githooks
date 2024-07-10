@@ -1,7 +1,6 @@
 use anyhow::Result;
 use git2::{Config, Repository};
 use std::cell::RefCell;
-use std::error::Error;
 use std::rc::Rc;
 
 pub struct GitConfigManager {
@@ -39,13 +38,13 @@ impl GitConfig {
             .unwrap_or(default.to_string())
     }
 
-    pub fn set(&mut self, key: &str, value: &str) -> Result<(), Box<dyn Error>> {
+    pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
         let full_key = format!("{}.{}.{}", self.section, self.hook, key);
         self.config.borrow_mut().set_str(&full_key, value)?;
         Ok(())
     }
 
-    pub fn remove(&mut self, key: &str) -> Result<(), Box<dyn Error>> {
+    pub fn remove(&mut self, key: &str) -> Result<()> {
         let full_key = format!("{}.{}.{}", self.section, self.hook, key);
         self.config.borrow_mut().remove(&full_key)?;
         Ok(())

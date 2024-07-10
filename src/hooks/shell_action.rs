@@ -1,8 +1,7 @@
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Result};
 use regex::Regex;
 use serde_derive::Deserialize;
 use std::path::Path;
-use std::process::Command;
 
 use crate::repo::config::GitConfig;
 
@@ -113,7 +112,7 @@ impl ShellAction {
                 _ => anyhow::bail!("Invalid runType {} for action {}", self.run_type, self.name),
             }
 
-            run_shell_command(&cmd)?;
+            shell_utils::run_shell_command(&cmd)?;
             if self.run_type == RUN_TYPE_PER_COMMIT {
                 return Ok(());
             }
@@ -129,35 +128,24 @@ impl ShellAction {
         self.available
     }
 
-    pub fn set_selected(&mut self, want_selected: bool) {
+    pub fn set_selected(&mut self, want_selected: bool) -> Result<()> {
         self.selected = want_selected;
 
-        if let Some(cfg) = &mut self.config {
-            if want_selected {
-                cfg.set(KEY_ENABLED, VALUE_TRUE);
-            } else {
-                cfg.remove(KEY_ENABLED);
-            }
+        let Some(cfg) = &mut self.config else {
+            bail!("Config store not available");
+        };
+
+        if want_selected {
+            cfg.set(KEY_ENABLED, VALUE_TRUE)
+        } else {
+            cfg.remove(KEY_ENABLED)
         }
     }
 
-    pub fn set_config(&mut self, cfg: GitConfig) {
-        self.set_selected(cfg.get_or_default(KEY_ENABLED, "") == VALUE_TRUE);
-        self.set_shell_cmd(&cfg.get_or_default(KEY_COMMAND, &self.shell_command[0]));
+    pub fn set_config(&mut self, cfg: GitConfig) -> Result<()> {
+        self.set_selected(cfg.get_or_default(KEY_ENABLED, "") == VALUE_TRUE)?;
+        self.set_shell_cmd(&cfg.get_or_default(KEY_COMMAND, &self.shell_command[0]))?;
         self.config = Some(cfg);
+        Ok(())
     }
-}
-
-trait Config {
-    fn get_or_default(&self, key: &str, default: &str) -> String;
-    fn set(&mut self, key: &str, value: &str);
-    fn remove(&mut self, key: &str);
-}
-
-fn run_shell_command(cmd: &[String]) -> Result<()> {
-    Command::new(&cmd[0])
-        .args(&cmd[1..])
-        .status()
-        .map_err(|e| anyhow!("Failed to execute command: {}", e))?;
-    Ok(())
 }

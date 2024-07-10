@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::collections::HashMap;
 
 use super::config::load_config_file;
@@ -20,11 +21,14 @@ pub fn get_hooks() -> Hooks {
 // Specify the configuration store persisting action configuration relevant to
 // the current context (typically the current git repository).
 pub trait HooksExt {
-    fn set_config_store(&mut self, s: &GitConfigManager);
+    fn set_config_store(&mut self, s: &GitConfigManager) -> Result<()>;
 }
 
 impl HooksExt for Hooks {
-    fn set_config_store(&mut self, s: &GitConfigManager) {
-        self.iter_mut().for_each(|(_, h)| h.set_config_store(s));
+    fn set_config_store(&mut self, s: &GitConfigManager) -> Result<()> {
+        for (_, hook) in self.iter_mut() {
+            hook.set_config_store(s)?;
+        }
+        Ok(())
     }
 }

@@ -24,7 +24,7 @@ struct Data {
 fn open_repo() -> Result<Data> {
     let repo = GitRepo::new()?;
     let mut hooks = hooks::hooks::get_hooks();
-    hooks.set_config_store(repo.get_config_manager());
+    hooks.set_config_store(repo.get_config_manager())?;
     Ok(Data { repo, hooks })
 }
 
@@ -97,12 +97,12 @@ fn show_config(data: Data) -> Result<()> {
             }
 
             if key.code == KeyCode::Char(' ') {
-                tree.toggle_selected();
+                tree.toggle_selected()?;
             }
         }
     }
 
-    terminal.clear();
+    terminal.clear()?;
     crossterm::terminal::disable_raw_mode()?;
     Ok(())
 }

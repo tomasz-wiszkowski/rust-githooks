@@ -1,3 +1,4 @@
+use anyhow::Result;
 use serde_derive::Deserialize;
 
 use super::shell_action::ShellAction;
@@ -32,11 +33,12 @@ impl Hook {
         &mut self.actions
     }
 
-    pub fn set_config_store(&mut self, store: &GitConfigManager) {
+    pub fn set_config_store(&mut self, store: &GitConfigManager) -> Result<()> {
         let id = &self.id;
-        self.actions.iter_mut().for_each(|action| {
-            action.set_config(store.get_config_for(id, action.id()));
-        })
+        for action in self.actions.iter_mut() {
+            action.set_config(store.get_config_for(id, action.id()))?;
+        }
+        Ok(())
     }
 
     pub fn sort_actions(&mut self) {

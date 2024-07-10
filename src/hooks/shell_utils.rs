@@ -68,7 +68,6 @@ pub fn substitute_command_line(
             match sub {
                 Substitution::Scalar(s) => out.push(s.clone()),
                 Substitution::Array(a) => out.extend(a.iter().map(|s| s.clone())),
-                _ => panic!("Unknown value type for key {}", arg),
             }
         } else {
             out.push(arg.clone());
