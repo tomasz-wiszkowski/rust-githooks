@@ -46,7 +46,9 @@ impl GitConfig {
 
     pub fn remove(&mut self, key: &str) -> Result<()> {
         let full_key = format!("{}.{}.{}", self.section, self.hook, key);
-        self.config.borrow_mut().remove(&full_key)?;
+        if self.config.borrow().get_entry(&full_key).is_ok() {
+            self.config.borrow_mut().remove(&full_key)?;
+        }
         Ok(())
     }
 }

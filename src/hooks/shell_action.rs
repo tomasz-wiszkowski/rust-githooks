@@ -143,9 +143,11 @@ impl ShellAction {
     }
 
     pub fn set_config(&mut self, cfg: GitConfig) -> Result<()> {
-        self.set_selected(cfg.get_or_default(KEY_ENABLED, "") == VALUE_TRUE)?;
-        self.set_shell_cmd(&cfg.get_or_default(KEY_COMMAND, &self.shell_command[0]))?;
+        let selected = cfg.get_or_default(KEY_ENABLED, "") == VALUE_TRUE;
+        let command = cfg.get_or_default(KEY_COMMAND, &self.shell_command[0]);
         self.config = Some(cfg);
+        self.set_selected(selected)?;
+        self.set_shell_cmd(&command)?;
         Ok(())
     }
 }
