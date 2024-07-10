@@ -51,8 +51,8 @@ fn main() -> Result<()> {
     }
 }
 
-fn run_hooks(mut data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
-    data.hooks.sort_by_priority();
+fn run_hooks(data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
+    //    data.hooks.sort_by_priority();
 
     let hook = data
         .hooks
@@ -64,15 +64,15 @@ fn run_hooks(mut data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
         .context("Run: cannot open work directory")?;
 
     let actions = hook.actions();
-    for h in actions {
-        h.run(&files, &args)?;
+    for (_, h) in actions {
+        h.borrow().run(&files, &args)?;
     }
 
     Ok(())
 }
 
-fn show_config(mut data: Data) -> Result<()> {
-    data.hooks.sort_by_name();
+fn show_config(data: Data) -> Result<()> {
+    //    data.hooks.sort_by_name();
 
     crossterm::terminal::enable_raw_mode()?;
     let backend = CrosstermBackend::new(std::io::stdout());

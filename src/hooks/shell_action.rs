@@ -1,11 +1,10 @@
-use anyhow::{bail, Result};
+use crate::repo::config::GitConfig;
+use anyhow::{bail, ensure, Result};
 use regex::Regex;
 use serde_derive::Deserialize;
 use std::path::Path;
 
-use crate::repo::config::GitConfig;
-
-use super::shell_utils::{self, Substitution};
+use super::shell_utils;
 
 const KEY_ENABLED: &str = "enabled";
 const KEY_COMMAND: &str = "cmd";
@@ -16,57 +15,32 @@ const RUN_TYPE_PER_FILE: &str = "perFile";
 const RUN_TYPE_PER_COMMIT: &str = "perCommit";
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ShellAction {
-    id: String,
     name: String,
     priority: i32,
     #[serde(with = "serde_regex")]
     file_pattern: Regex,
-    shell_command: Vec<String>,
+    shell_cmd: Vec<String>,
     run_type: String,
-    selected: bool,
-    available: bool,
 
+    #[serde(skip_deserializing)]
+    selected: bool,
+    #[serde(skip_deserializing)]
+    available: bool,
     #[serde(skip_deserializing)]
     config: Option<GitConfig>,
 }
 
 impl ShellAction {
-    pub fn new(
-        id: &str,
-        name: &str,
-        priority: i32,
-        file_pattern: &str,
-        shell_cmd: Vec<String>,
-        run_type: String,
-    ) -> Result<Self> {
-        Ok(ShellAction {
-            id: id.to_string(),
-            name: name.to_string(),
-            priority,
-            file_pattern: Regex::new(file_pattern)?,
-            available: false,
-            shell_command: shell_cmd,
-            selected: false,
-            run_type,
-            config: None,
-        })
-    }
-
     pub fn set_shell_cmd(&mut self, cmd: &str) -> Result<()> {
         if let Some(command) = shell_utils::get_shell_command_absolute_path(cmd) {
             if let Some(str_command) = command.to_str().map(|s| s.to_owned()) {
-                self.shell_command[0] = str_command;
+                self.shell_cmd[0] = str_command;
                 self.available = true;
             }
         }
         Ok(())
-    }
-}
-
-impl ShellAction {
-    pub fn id(&self) -> &str {
-        &self.id
     }
 
     pub fn name(&self) -> &str {
@@ -85,13 +59,16 @@ impl ShellAction {
             println!(
                 "Cannot run {} - missing command {}",
                 self.name(),
-                self.shell_command[0]
+                self.shell_cmd[0]
             );
             return Ok(());
         }
 
         let mut substitutions = std::collections::HashMap::new();
-        substitutions.insert(PLACEHOLDER_GIT_ARGS.to_owned(), Substitution::Array(args));
+        substitutions.insert(
+            PLACEHOLDER_GIT_ARGS.to_owned(),
+            shell_utils::Substitution::Array(args),
+        );
 
         for file in files {
             let base = Path::new(file).file_name().unwrap().to_str().unwrap();
@@ -102,9 +79,9 @@ impl ShellAction {
 
             substitutions.insert(
                 PLACEHOLDER_SINGLE_FILE.to_owned(),
-                Substitution::Scalar(file.clone()),
+                shell_utils::Substitution::Scalar(file.clone()),
             );
-            let cmd = shell_utils::substitute_command_line(&self.shell_command, &substitutions);
+            let cmd = shell_utils::substitute_command_line(&self.shell_cmd, &substitutions);
 
             match self.run_type.as_str() {
                 RUN_TYPE_PER_COMMIT => println!("Running {}", self.name),
@@ -128,6 +105,13 @@ impl ShellAction {
         self.available
     }
 
+    pub fn check_valid(&self) -> Result<()> {
+        ensure!(!self.name.is_empty(), "Hook name not set");
+        ensure!(!self.shell_cmd.is_empty(), "Shell command not set");
+
+        Ok(())
+    }
+
     pub fn set_selected(&mut self, want_selected: bool) -> Result<()> {
         self.selected = want_selected;
 
@@ -144,7 +128,7 @@ impl ShellAction {
 
     pub fn set_config(&mut self, cfg: GitConfig) -> Result<()> {
         let selected = cfg.get_or_default(KEY_ENABLED, "") == VALUE_TRUE;
-        let command = cfg.get_or_default(KEY_COMMAND, &self.shell_command[0]);
+        let command = cfg.get_or_default(KEY_COMMAND, &self.shell_cmd[0]);
         self.config = Some(cfg);
         self.set_selected(selected)?;
         self.set_shell_cmd(&command)?;

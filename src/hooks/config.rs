@@ -1,26 +1,18 @@
 use anyhow::{bail, Context, Result};
 use serde_derive::Deserialize;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
+use std::rc::Rc;
 
 use super::hook::Hook;
 use super::shell_action::ShellAction;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ActionConfig {
-    name: String,
-    run_type: String,
-    priority: i32,
-    file_pattern: String,
-    shell_cmd: Vec<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct HookConfig {
     name: String,
-    actions: HashMap<String, ActionConfig>,
+    actions: HashMap<String, Rc<RefCell<ShellAction>>>,
 }
 
 #[derive(Deserialize)]
@@ -58,30 +50,14 @@ pub fn load_config_file() -> Result<HashMap<String, Hook>> {
             ck
         );
 
-        let mut hooks = Vec::new();
-
-        for (hk, hv) in cv.actions {
+        for (hk, hv) in cv.actions.iter() {
             anyhow::ensure!(!hk.is_empty(), "Invalid hook ID in category {}", ck);
-            anyhow::ensure!(!hv.name.is_empty(), "Invalid hook name for hook {}", hk);
-            anyhow::ensure!(
-                !hv.shell_cmd.is_empty(),
-                "Invalid shell command for hook {}",
-                hk
-            );
-
-            let hook = ShellAction::new(
-                &hk,
-                &hv.name,
-                hv.priority,
-                &hv.file_pattern,
-                hv.shell_cmd,
-                hv.run_type,
-            )?;
-
-            hooks.push(hook);
+            hv.borrow()
+                .check_valid()
+                .context(format!("while evaluating {}/{}", ck, hk))?;
         }
 
-        let category = Hook::new(ck.clone(), cv.name, hooks);
+        let category = Hook::new(ck.clone(), cv.name, cv.actions);
 
         result.insert(ck, category);
     }

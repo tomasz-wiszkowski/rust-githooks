@@ -2,6 +2,8 @@ use crate::hooks::hook::Hook;
 use crate::hooks::hooks::Hooks;
 use crate::hooks::shell_action::ShellAction;
 use anyhow::Result;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use tui::{
     style::{Color, Modifier, Style},
@@ -11,7 +13,7 @@ use tui::{
 enum ListElement {
     Space(ListItem<'static>),
     Category(ListItem<'static>),
-    Action(ListItem<'static>, String, usize),
+    Action(ListItem<'static>, Rc<RefCell<ShellAction>>),
 }
 
 impl From<&ListElement> for ListItem<'static> {
@@ -19,15 +21,13 @@ impl From<&ListElement> for ListItem<'static> {
         match value {
             ListElement::Space(e) => e,
             ListElement::Category(e) => e,
-            ListElement::Action(e, _, _) => e,
+            ListElement::Action(e, _) => e,
         }
         .clone()
     }
 }
 
 pub struct HooksTreeView {
-    hooks: Hooks,
-
     items: Vec<ListElement>,
     selected: usize,
 
@@ -44,19 +44,18 @@ impl HooksTreeView {
         ListElement::Category(ListItem::new(format!("{} - {}", hook.id(), hook.name())))
     }
 
-    fn action_tree_node(category_id: &str, index: usize, action: &ShellAction) -> ListElement {
-        let marker = if !action.is_selected() {
+    fn action_tree_node(action: &Rc<RefCell<ShellAction>>) -> ListElement {
+        let marker = if !action.borrow().is_selected() {
             ' '
-        } else if !action.is_available() {
+        } else if !action.borrow().is_available() {
             '✘'
         } else {
             '✔'
         };
 
         ListElement::Action(
-            ListItem::new(format!("    [{}] {}", marker, action.name())),
-            category_id.into(),
-            index,
+            ListItem::new(format!("    [{}] {}", marker, action.borrow().name())),
+            action.clone(),
         )
     }
 
@@ -67,8 +66,8 @@ impl HooksTreeView {
             items.push(Self::space_tree_node());
             items.push(Self::category_tree_node(hook));
 
-            for (index, action) in hook.actions().iter().enumerate() {
-                items.push(Self::action_tree_node(hook.id(), index, action));
+            for (_name, action) in hook.actions().iter() {
+                items.push(Self::action_tree_node(action));
             }
         }
 
@@ -94,7 +93,7 @@ impl HooksTreeView {
         let mut next_item = (self.selected as i32) - 1;
         while next_item >= 0 {
             match self.items.get(next_item as usize).unwrap() {
-                ListElement::Category(_) | ListElement::Action(_, _, _) => {
+                ListElement::Category(_) | ListElement::Action(_, _) => {
                     self.selected = next_item as usize;
                     break;
                 }
@@ -107,7 +106,7 @@ impl HooksTreeView {
         let mut next_item = self.selected + 1;
         while next_item < self.items.len() {
             match self.items.get(next_item).unwrap() {
-                ListElement::Category(_) | ListElement::Action(_, _, _) => {
+                ListElement::Category(_) | ListElement::Action(_, _) => {
                     self.selected = next_item;
                     break;
                 }
@@ -117,24 +116,14 @@ impl HooksTreeView {
     }
 
     pub fn toggle_selected(&mut self) -> Result<()> {
-        let ListElement::Action(_, category_id, index) = self.items.get(self.selected).unwrap()
-        else {
+        let ListElement::Action(_, action) = self.items.get(self.selected).unwrap() else {
             return Ok(());
         };
 
-        let index = *index;
+        let action_selected = action.borrow().is_selected();
+        action.borrow_mut().set_selected(!action_selected)?;
 
-        let Some(category) = self.hooks.get_mut(category_id) else {
-            return Ok(());
-        };
-
-        let Some(action) = category.actions_mut().get_mut(index) else {
-            return Ok(());
-        };
-
-        action.set_selected(!action.is_selected())?;
-
-        self.items[self.selected] = Self::action_tree_node(category_id, index, action);
+        self.items[self.selected] = Self::action_tree_node(action);
         Ok(())
     }
 
@@ -143,7 +132,6 @@ impl HooksTreeView {
         let style_selected = Style::default().add_modifier(Modifier::BOLD);
         let items = Self::build_items_list(&hooks);
         Self {
-            hooks,
             items,
             selected: 0usize,
             style_selected,

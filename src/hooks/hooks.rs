@@ -20,8 +20,6 @@ pub fn get_hooks() -> Hooks {
 // the current context (typically the current git repository).
 pub trait HooksExt {
     fn set_config_store(&mut self, s: &GitConfigManager) -> Result<()>;
-    fn sort_by_name(&mut self);
-    fn sort_by_priority(&mut self);
 }
 
 impl HooksExt for Hooks {
@@ -30,13 +28,5 @@ impl HooksExt for Hooks {
             hook.set_config_store(s)?;
         }
         Ok(())
-    }
-
-    fn sort_by_priority(&mut self) {
-        self.iter_mut().for_each(|(_, h)| h.sort_by_priority());
-    }
-
-    fn sort_by_name(&mut self) {
-        self.iter_mut().for_each(|(_, h)| h.sort_by_name());
     }
 }

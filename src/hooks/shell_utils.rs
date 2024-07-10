@@ -4,10 +4,14 @@ use std::path::PathBuf;
 use std::process::Command;
 use which;
 
-// Resolve executable name into full path.
-// Searches for executableName either in PATH or location relative to
-// current path. When found, returns Some with absolute path of the command.
-// Otherwise returns None.
+use std::collections::HashMap;
+
+/**
+ * Resolve executable name into full path.
+ * Searches for executableName either in PATH or location relative to
+ * current path. When found, returns Some with absolute path of the command.
+ * Otherwise returns None.
+ */
 pub fn get_shell_command_absolute_path(executable_name: &str) -> Option<PathBuf> {
     if let Ok(path) = which::which(executable_name) {
         return Some(path);
@@ -24,10 +28,11 @@ pub fn get_shell_command_absolute_path(executable_name: &str) -> Option<PathBuf>
         None
     }
 }
-
-// Execute supplied shell command.
-// The command must be supplied in an "exploded" form, where each argument is a
-// separate string. Returns a tuple of strings: (stdout, stderr).
+/**
+ * Execute supplied shell command.
+ * The command must be supplied in an "exploded" form, where each argument is a
+ * separate string. Returns a tuple of strings: (stdout, stderr).
+ */
 pub fn run_shell_command(args: &[String]) -> Result<(String, String)> {
     let output = Command::new(&args[0])
         .args(&args[1..])
@@ -51,15 +56,17 @@ pub enum Substitution<'a> {
     Array(&'a Vec<String>),
 }
 
-// Substitute arguments and construct a command line.
-// The input_cmd_line represents the set of arguments (including command).
-// Each argument is matched against items in substitute_args map. When a
-// corresponding entry is found, the argument is replaced with the
-// map value. Replaces single strings and string arrays.
-// Returns resulting CommandLine.
+/**
+ * Substitute arguments and construct a command line.
+ * The input_cmd_line represents the set of arguments (including command).
+ * Each argument is matched against items in substitute_args map. When a
+ * corresponding entry is found, the argument is replaced with the
+ * map value. Replaces single strings and string arrays.
+ * Returns resulting CommandLine.
+ */
 pub fn substitute_command_line(
     input_cmd_line: &[String],
-    substitute_args: &std::collections::HashMap<String, Substitution>,
+    substitute_args: &HashMap<String, Substitution>,
 ) -> Vec<String> {
     let mut out = Vec::new();
 
