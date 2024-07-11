@@ -44,7 +44,7 @@ impl HooksTreeView {
         ListElement::Category(ListItem::new(format!("{} - {}", hook.id(), hook.name())))
     }
 
-    fn action_tree_node(action: &Rc<RefCell<ShellAction>>) -> ListElement {
+    fn action_tree_node(action: Rc<RefCell<ShellAction>>) -> ListElement {
         let marker = if !action.borrow().is_selected() {
             ' '
         } else if !action.borrow().is_available() {
@@ -59,6 +59,16 @@ impl HooksTreeView {
         )
     }
 
+    fn get_actions_sorted_by_name(hook: &Hook) -> Vec<Rc<RefCell<ShellAction>>> {
+        let mut res = hook
+            .actions()
+            .iter()
+            .map(|(_, a)| a.clone())
+            .collect::<Vec<_>>();
+        res.sort_by(|a, b| a.borrow().name().cmp(b.borrow().name()));
+        res
+    }
+
     fn build_items_list(hooks: &Hooks) -> Vec<ListElement> {
         let mut items = vec![];
 
@@ -66,9 +76,9 @@ impl HooksTreeView {
             items.push(Self::space_tree_node());
             items.push(Self::category_tree_node(hook));
 
-            for (_name, action) in hook.actions().iter() {
-                items.push(Self::action_tree_node(action));
-            }
+            Self::get_actions_sorted_by_name(hook)
+                .into_iter()
+                .for_each(|a| items.push(Self::action_tree_node(a)));
         }
 
         items
@@ -123,7 +133,7 @@ impl HooksTreeView {
         let action_selected = action.borrow().is_selected();
         action.borrow_mut().set_selected(!action_selected)?;
 
-        self.items[self.selected] = Self::action_tree_node(action);
+        self.items[self.selected] = Self::action_tree_node(action.clone());
         Ok(())
     }
 

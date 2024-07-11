@@ -8,7 +8,8 @@ use crate::repo::config::GitConfigManager;
 
 use std::collections::HashMap;
 
-pub type Actions = HashMap<String, Rc<RefCell<ShellAction>>>;
+pub type Action = Rc<RefCell<ShellAction>>;
+pub type Actions = HashMap<String, Action>;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,10 +36,6 @@ impl Hook {
         &self.actions
     }
 
-    pub fn actions_mut(&mut self) -> &mut Actions {
-        &mut self.actions
-    }
-
     pub fn set_config_store(&mut self, store: &GitConfigManager) -> Result<()> {
         let id = &self.id;
         for (name, action) in self.actions.iter_mut() {
@@ -48,14 +45,4 @@ impl Hook {
         }
         Ok(())
     }
-
-    /*
-    pub fn sort_by_priority(&mut self) {
-        self.actions.sort_by_key(|a| a.priority());
-    }
-
-    pub fn sort_by_name(&mut self) {
-        self.actions.sort_by(|a, b| a.name().cmp(b.name()));
-    }
-    */
 }

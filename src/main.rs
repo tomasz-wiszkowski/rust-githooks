@@ -3,6 +3,8 @@ mod hooks;
 mod repo;
 mod ui;
 
+use hooks::hook::Action;
+use hooks::hook::Hook;
 use hooks::hooks::Hooks;
 use hooks::hooks::HooksExt;
 use repo::repo::GitRepo;
@@ -51,6 +53,16 @@ fn main() -> Result<()> {
     }
 }
 
+fn get_actions_sorted_by_priority(hook: &Hook) -> Vec<Action> {
+    let mut res = hook
+        .actions()
+        .iter()
+        .map(|(_, a)| a.clone())
+        .collect::<Vec<_>>();
+    res.sort_by_key(|a| a.borrow().priority());
+    res
+}
+
 fn run_hooks(data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
     //    data.hooks.sort_by_priority();
 
@@ -63,17 +75,15 @@ fn run_hooks(data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
     env::set_current_dir(data.repo.work_dir().context("Could not get workdir root")?)
         .context("Run: cannot open work directory")?;
 
-    let actions = hook.actions();
-    for (_, h) in actions {
-        h.borrow().run(&files, &args)?;
+    let actions = get_actions_sorted_by_priority(hook);
+    for a in actions {
+        a.borrow().run(&files, &args)?;
     }
 
     Ok(())
 }
 
 fn show_config(data: Data) -> Result<()> {
-    //    data.hooks.sort_by_name();
-
     crossterm::terminal::enable_raw_mode()?;
     let backend = CrosstermBackend::new(std::io::stdout());
     let mut terminal = Terminal::new(backend)?;

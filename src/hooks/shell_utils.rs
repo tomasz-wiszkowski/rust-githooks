@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
-use which;
 
 use std::collections::HashMap;
 
