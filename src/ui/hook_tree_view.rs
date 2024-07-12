@@ -149,3 +149,94 @@ impl HooksTreeView {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hooks::hook::Actions;
+    use crate::hooks::hook::Hook;
+    use crate::hooks::hooks::Hooks;
+
+    use crate::hooks::shell_action::ShellAction;
+
+    fn create_mock_hooks() -> Hooks {
+        // Create mock hooks and actions for testing
+        // This is a simplified version and may need to be adjusted based on your actual implementation
+        let action1 = Rc::new(RefCell::new(ShellAction::new_for_test("Action 1")));
+        let mut actions1 = Actions::new();
+        actions1.insert("action1".into(), action1);
+
+        let action2 = Rc::new(RefCell::new(ShellAction::new_for_test("Action 2")));
+        let mut actions2 = Actions::new();
+        actions2.insert("action2".into(), action2);
+
+        let hook1 = Hook::new("1".into(), "Hook 1".into(), actions1);
+        let hook2 = Hook::new("2".into(), "Hook 2".into(), actions2);
+
+        let mut hooks = Hooks::new();
+
+        hooks.insert(hook1.id().into(), hook1);
+        hooks.insert(hook2.id().into(), hook2);
+
+        hooks
+    }
+
+    #[test]
+    fn test_new() {
+        let hooks = create_mock_hooks();
+        let tree_view = HooksTreeView::new(hooks);
+
+        assert_eq!(tree_view.selected, 0);
+        assert_eq!(tree_view.items.len(), 6); // 2 spaces, 2 categories, 2 actions
+    }
+
+    #[test]
+    fn test_select_next_item() {
+        let hooks = create_mock_hooks();
+        let mut tree_view = HooksTreeView::new(hooks);
+
+        tree_view.select_next_item();
+        assert_eq!(tree_view.selected, 1);
+
+        tree_view.select_next_item();
+        assert_eq!(tree_view.selected, 2);
+    }
+
+    #[test]
+    fn test_select_prev_item() {
+        let hooks = create_mock_hooks();
+        let mut tree_view = HooksTreeView::new(hooks);
+
+        tree_view.selected = 3;
+        tree_view.select_prev_item();
+        assert_eq!(tree_view.selected, 2);
+
+        tree_view.select_prev_item();
+        assert_eq!(tree_view.selected, 1); // Should not go below 1
+    }
+
+    /*
+    #[test]
+    fn test_toggle_selected() {
+        let hooks = create_mock_hooks();
+        let mut tree_view = HooksTreeView::new(hooks);
+
+        tree_view.selected = 2; // Select an action
+        tree_view.toggle_selected().unwrap();
+
+        if let ListElement::Action(_, action) = &tree_view.items[2] {
+            assert!(action.borrow().is_selected());
+        } else {
+            panic!("Expected Action at index 2");
+        }
+
+        tree_view.toggle_selected().unwrap();
+
+        if let ListElement::Action(_, action) = &tree_view.items[2] {
+            assert!(!action.borrow().is_selected());
+        } else {
+            panic!("Expected Action at index 2");
+        }
+    }
+    */
+}

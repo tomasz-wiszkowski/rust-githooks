@@ -33,6 +33,21 @@ pub struct ShellAction {
 }
 
 impl ShellAction {
+    #[cfg(test)]
+    pub fn new_for_test(name: &str) -> Self {
+        Self {
+            name: name.into(),
+            priority: 0,
+            file_pattern: Regex::new(".*").unwrap(),
+            shell_cmd: vec![],
+            run_type: RUN_TYPE_PER_FILE.into(),
+
+            selected: false,
+            available: true,
+            config: None,
+        }
+    }
+
     pub fn set_shell_cmd(&mut self, cmd: &str) -> Result<()> {
         if let Some(command) = shell_utils::get_shell_command_absolute_path(cmd) {
             if let Some(str_command) = command.to_str().map(|s| s.to_owned()) {

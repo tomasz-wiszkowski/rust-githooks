@@ -1,4 +1,3 @@
-// mod check;
 mod hooks;
 mod repo;
 mod ui;
@@ -12,7 +11,7 @@ use std::env;
 use std::fs;
 use std::os::unix::fs as unix_fs;
 use std::path::Path;
-use ui::hook_tree_view::HooksTreeView;
+use ui::HooksTreeView;
 
 use anyhow::{Context, Result};
 use crossterm::event::{self, Event, KeyCode};
@@ -64,8 +63,6 @@ fn get_actions_sorted_by_priority(hook: &Hook) -> Vec<Action> {
 }
 
 fn run_hooks(data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
-    //    data.hooks.sort_by_priority();
-
     let hook = data
         .hooks
         .get(hook_name)
