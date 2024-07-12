@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use super::config::load_config_file;
 use super::hook::Hook;
-use crate::repo::config::GitConfigManager;
+use crate::repo::GitConfigManager;
 
 // A map of all known and user-defined hooks and their corresponding actions.
 // The key is the hook name, and the value is the corresponding Hook definition.
@@ -19,11 +19,11 @@ pub fn get_hooks() -> Hooks {
 // Specify the configuration store persisting action configuration relevant to
 // the current context (typically the current git repository).
 pub trait HooksExt {
-    fn set_config_store(&mut self, s: &GitConfigManager) -> Result<()>;
+    fn set_config_store(&mut self, s: &Box<dyn GitConfigManager>) -> Result<()>;
 }
 
 impl HooksExt for Hooks {
-    fn set_config_store(&mut self, s: &GitConfigManager) -> Result<()> {
+    fn set_config_store(&mut self, s: &Box<dyn GitConfigManager>) -> Result<()> {
         for (_, hook) in self.iter_mut() {
             hook.set_config_store(s)?;
         }

@@ -7,7 +7,7 @@ use hooks::hook::Action;
 use hooks::hook::Hook;
 use hooks::hooks::Hooks;
 use hooks::hooks::HooksExt;
-use repo::repo::GitRepo;
+use repo::GitRepo;
 use std::env;
 use std::fs;
 use std::os::unix::fs as unix_fs;

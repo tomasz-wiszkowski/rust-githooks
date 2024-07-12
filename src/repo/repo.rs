@@ -5,16 +5,17 @@ use std::path::Path;
 use std::rc::Rc;
 
 use super::config::GitConfigManager;
+use super::config::GitConfigManagerImpl;
 
 pub struct GitRepo {
     repo: Rc<Repository>,
-    config: GitConfigManager,
+    config: Box<dyn GitConfigManager>,
 }
 
 impl GitRepo {
     pub fn new() -> Result<GitRepo> {
         let repo = Rc::new(Repository::open_from_env()?);
-        let config = GitConfigManager::new(&repo)?;
+        let config = GitConfigManagerImpl::new(&repo)?;
 
         Ok(GitRepo { repo, config })
     }
@@ -27,7 +28,7 @@ impl GitRepo {
         self.repo.path()
     }
 
-    pub fn get_config_manager(&self) -> &GitConfigManager {
+    pub fn get_config_manager(&self) -> &Box<dyn GitConfigManager> {
         &self.config
     }
 

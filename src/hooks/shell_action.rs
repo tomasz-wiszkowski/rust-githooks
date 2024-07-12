@@ -1,4 +1,4 @@
-use crate::repo::config::GitConfig;
+use crate::repo::*;
 use anyhow::{bail, ensure, Result};
 use regex::Regex;
 use serde_derive::Deserialize;
@@ -29,7 +29,7 @@ pub struct ShellAction {
     #[serde(skip_deserializing)]
     available: bool,
     #[serde(skip_deserializing)]
-    config: Option<GitConfig>,
+    config: Option<Box<dyn GitConfig>>,
 }
 
 impl ShellAction {
@@ -126,7 +126,7 @@ impl ShellAction {
         }
     }
 
-    pub fn set_config(&mut self, cfg: GitConfig) -> Result<()> {
+    pub fn set_config(&mut self, cfg: Box<dyn GitConfig>) -> Result<()> {
         let selected = cfg.get_or_default(KEY_ENABLED, "") == VALUE_TRUE;
         let command = cfg.get_or_default(KEY_COMMAND, &self.shell_cmd[0]);
         self.config = Some(cfg);
