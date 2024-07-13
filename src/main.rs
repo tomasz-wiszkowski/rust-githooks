@@ -2,10 +2,10 @@ mod hooks;
 mod repo;
 mod ui;
 
-use hooks::hook::Action;
-use hooks::hook::Hook;
-use hooks::hooks::Hooks;
-use hooks::hooks::HooksExt;
+use hooks::Action;
+use hooks::Hook;
+use hooks::Hooks;
+use hooks::HooksExt;
 use repo::GitRepo;
 use std::env;
 use std::fs;
@@ -24,7 +24,7 @@ struct Data {
 
 fn open_repo() -> Result<Data> {
     let repo = GitRepo::new()?;
-    let mut hooks = hooks::hooks::get_hooks();
+    let mut hooks = hooks::get_hooks();
     hooks.set_config_store(repo.get_config_manager())?;
     Ok(Data { repo, hooks })
 }

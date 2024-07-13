@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use serde_derive::Deserialize;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -9,17 +9,23 @@ use super::hook::Hook;
 use super::shell_action::ShellAction;
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct HookConfig {
-    name: String,
-    actions: HashMap<String, Rc<RefCell<ShellAction>>>,
+#[serde(tag = "version", rename_all = "camelCase")]
+enum TopConfig {
+    #[serde(rename = "1")]
+    V1(V1Config),
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct TopConfig {
-    version: i32,
-    hooks: HashMap<String, HookConfig>,
+struct V1Config {
+    hooks: HashMap<String, V1HookConfig>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct V1HookConfig {
+    name: String,
+    actions: HashMap<String, Rc<RefCell<ShellAction>>>,
 }
 
 pub fn load_config_file() -> Result<HashMap<String, Hook>> {
@@ -30,16 +36,12 @@ pub fn load_config_file() -> Result<HashMap<String, Hook>> {
 
     let config: TopConfig = serde_json::from_str(&content).context("Malformed config file")?;
 
-    if config.version == 0 {
-        bail!("Unsupported config file version");
+    match config {
+        TopConfig::V1(cfg) => from_v1_config(cfg),
     }
+}
 
-    anyhow::ensure!(
-        config.version == 1,
-        "Unsupported config file version {}",
-        config.version
-    );
-
+fn from_v1_config(config: V1Config) -> Result<HashMap<String, Hook>> {
     let mut result = HashMap::new();
 
     for (ck, cv) in config.hooks {

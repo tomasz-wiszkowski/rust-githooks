@@ -1,6 +1,6 @@
-use crate::hooks::hook::Hook;
-use crate::hooks::hooks::Hooks;
-use crate::hooks::shell_action::ShellAction;
+use crate::hooks::Hook;
+use crate::hooks::Hooks;
+use crate::hooks::ShellAction;
 use anyhow::Result;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -153,11 +153,11 @@ impl HooksTreeView {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hooks::hook::Actions;
-    use crate::hooks::hook::Hook;
-    use crate::hooks::hooks::Hooks;
+    use crate::hooks::Actions;
+    use crate::hooks::Hook;
+    use crate::hooks::Hooks;
 
-    use crate::hooks::shell_action::ShellAction;
+    use crate::hooks::ShellAction;
 
     fn create_mock_hooks() -> Hooks {
         // Create mock hooks and actions for testing
