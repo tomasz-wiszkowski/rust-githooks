@@ -1,18 +1,8 @@
 use anyhow::Result;
-use serde_derive::Deserialize;
-use std::cell::RefCell;
-use std::rc::Rc;
 
-use super::shell_action::ShellAction;
+use super::Actions;
 use crate::repo::GitConfigManager;
 
-use std::collections::HashMap;
-
-pub type Action = Rc<RefCell<ShellAction>>;
-pub type Actions = HashMap<String, Action>;
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Hook {
     id: String,
     name: String,
@@ -49,9 +39,11 @@ impl Hook {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::Hook;
     use crate::repo::test::*;
+    use anyhow::Result;
     use mockall::predicate::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_new_hook() {

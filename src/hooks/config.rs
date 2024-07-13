@@ -6,7 +6,9 @@ use std::fs;
 use std::rc::Rc;
 
 use super::hook::Hook;
-use super::shell_action::ShellAction;
+use super::Action;
+use super::ActionTraitInternal;
+use super::ShellAction;
 
 #[derive(Deserialize)]
 #[serde(tag = "version", rename_all = "camelCase")]
@@ -25,7 +27,7 @@ struct V1Config {
 #[serde(rename_all = "camelCase")]
 struct V1HookConfig {
     name: String,
-    actions: HashMap<String, Rc<RefCell<ShellAction>>>,
+    actions: HashMap<String, ShellAction>,
 }
 
 pub fn load_config_file() -> Result<HashMap<String, Hook>> {
@@ -44,7 +46,7 @@ pub fn load_config_file() -> Result<HashMap<String, Hook>> {
 fn from_v1_config(config: V1Config) -> Result<HashMap<String, Hook>> {
     let mut result = HashMap::new();
 
-    for (ck, cv) in config.hooks {
+    for (ck, mut cv) in config.hooks.into_iter() {
         anyhow::ensure!(!ck.is_empty(), "Invalid category ID");
         anyhow::ensure!(
             !cv.name.is_empty(),
@@ -52,14 +54,20 @@ fn from_v1_config(config: V1Config) -> Result<HashMap<String, Hook>> {
             ck
         );
 
-        for (hk, hv) in cv.actions.iter() {
+        for (hk, hv) in cv.actions.iter_mut() {
             anyhow::ensure!(!hk.is_empty(), "Invalid hook ID in category {}", ck);
-            hv.borrow()
-                .check_valid()
+            hv.check_valid()
                 .context(format!("while evaluating {}/{}", ck, hk))?;
         }
 
-        let category = Hook::new(ck.clone(), cv.name, cv.actions);
+        let category = Hook::new(
+            ck.clone(),
+            cv.name,
+            cv.actions
+                .into_iter()
+                .map(|(n, a)| (n, Rc::new(RefCell::new(a)) as Action))
+                .collect(),
+        );
 
         result.insert(ck, category);
     }

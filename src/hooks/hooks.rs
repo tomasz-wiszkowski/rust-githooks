@@ -1,8 +1,8 @@
 use anyhow::Result;
 use std::collections::HashMap;
 
-use super::config::load_config_file;
-use super::hook::Hook;
+use super::load_config_file;
+use super::Hook;
 use crate::repo::GitConfigManager;
 
 // A map of all known and user-defined hooks and their corresponding actions.

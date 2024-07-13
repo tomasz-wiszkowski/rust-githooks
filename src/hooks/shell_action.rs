@@ -1,10 +1,11 @@
-use crate::repo::*;
+use crate::repo::GitConfig;
 use anyhow::{bail, ensure, Result};
 use regex::Regex;
 use serde_derive::Deserialize;
 use std::path::Path;
 
 use super::shell_utils;
+use super::ActionTrait;
 
 const KEY_ENABLED: &str = "enabled";
 const KEY_COMMAND: &str = "cmd";
@@ -57,16 +58,18 @@ impl ShellAction {
         }
         Ok(())
     }
+}
 
-    pub fn name(&self) -> &str {
+impl ActionTrait for ShellAction {
+    fn name(&self) -> &str {
         &self.name
     }
 
-    pub fn priority(&self) -> i32 {
+    fn priority(&self) -> i32 {
         self.priority
     }
 
-    pub fn run(&self, files: &[String], args: &Vec<String>) -> Result<()> {
+    fn run(&self, files: &[String], args: &Vec<String>) -> Result<()> {
         if !self.is_selected() {
             return Ok(());
         }
@@ -112,22 +115,15 @@ impl ShellAction {
         Ok(())
     }
 
-    pub fn is_selected(&self) -> bool {
+    fn is_selected(&self) -> bool {
         self.selected
     }
 
-    pub fn is_available(&self) -> bool {
+    fn is_available(&self) -> bool {
         self.available
     }
 
-    pub fn check_valid(&self) -> Result<()> {
-        ensure!(!self.name.is_empty(), "Hook name not set");
-        ensure!(!self.shell_cmd.is_empty(), "Shell command not set");
-
-        Ok(())
-    }
-
-    pub fn set_selected(&mut self, want_selected: bool) -> Result<()> {
+    fn set_selected(&mut self, want_selected: bool) -> Result<()> {
         self.selected = want_selected;
 
         let Some(cfg) = &mut self.config else {
@@ -140,13 +136,22 @@ impl ShellAction {
             cfg.remove(KEY_ENABLED)
         }
     }
+}
 
-    pub fn set_config(&mut self, cfg: Box<dyn GitConfig>) -> Result<()> {
+impl super::ActionTraitInternal for ShellAction {
+    fn set_config(&mut self, cfg: Box<dyn GitConfig>) -> Result<()> {
         let selected = cfg.get_or_default(KEY_ENABLED, "") == VALUE_TRUE;
         let command = cfg.get_or_default(KEY_COMMAND, &self.shell_cmd[0]);
         self.config = Some(cfg);
         self.set_selected(selected)?;
         self.set_shell_cmd(&command)?;
+        Ok(())
+    }
+
+    fn check_valid(&self) -> Result<()> {
+        ensure!(!self.name.is_empty(), "Hook name not set");
+        ensure!(!self.shell_cmd.is_empty(), "Shell command not set");
+
         Ok(())
     }
 }

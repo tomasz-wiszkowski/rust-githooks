@@ -1,9 +1,7 @@
+use crate::hooks::Action;
 use crate::hooks::Hook;
 use crate::hooks::Hooks;
-use crate::hooks::ShellAction;
 use anyhow::Result;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 use tui::{
     style::{Color, Modifier, Style},
@@ -13,7 +11,7 @@ use tui::{
 enum ListElement {
     Space(ListItem<'static>),
     Category(ListItem<'static>),
-    Action(ListItem<'static>, Rc<RefCell<ShellAction>>),
+    Action(ListItem<'static>, Action),
 }
 
 impl From<&ListElement> for ListItem<'static> {
@@ -44,7 +42,7 @@ impl HooksTreeView {
         ListElement::Category(ListItem::new(format!("{} - {}", hook.id(), hook.name())))
     }
 
-    fn action_tree_node(action: Rc<RefCell<ShellAction>>) -> ListElement {
+    fn action_tree_node(action: Action) -> ListElement {
         let marker = if !action.borrow().is_selected() {
             ' '
         } else if !action.borrow().is_available() {
@@ -59,7 +57,7 @@ impl HooksTreeView {
         )
     }
 
-    fn get_actions_sorted_by_name(hook: &Hook) -> Vec<Rc<RefCell<ShellAction>>> {
+    fn get_actions_sorted_by_name(hook: &Hook) -> Vec<Action> {
         let mut res = hook
             .actions()
             .iter()
@@ -156,6 +154,8 @@ mod tests {
     use crate::hooks::Actions;
     use crate::hooks::Hook;
     use crate::hooks::Hooks;
+    use std::cell::RefCell;
+    use std::rc::Rc;
 
     use crate::hooks::ShellAction;
 
