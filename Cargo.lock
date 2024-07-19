@@ -292,6 +292,7 @@ dependencies = [
  "env_logger",
  "fs_extra",
  "git2",
+ "log",
  "mockall",
  "mockall_derive",
  "openssl",

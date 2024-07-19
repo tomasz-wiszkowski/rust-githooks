@@ -38,7 +38,7 @@ impl GitRepo {
         let parent = match commit.parent(0) {
             Ok(parent) => parent,
             Err(_) => {
-                println!("Unable to query parent commit - assuming first commit");
+                log::info!("Unable to query parent commit - assuming first commit");
                 return self.get_list_of_all_files();
             }
         };
@@ -73,8 +73,12 @@ impl GitRepo {
     pub fn get_list_of_all_files(&self) -> Result<Vec<String>> {
         let tree = self.repo.head()?.peel_to_tree()?;
         let mut paths = Vec::new();
-        tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
-            paths.push(entry.name().unwrap().to_string());
+        tree.walk(git2::TreeWalkMode::PreOrder, |entry_path, entry| {
+            let p = Path::new(entry_path);
+            if let Some(name) = entry.name() {
+                let p = p.join(name);
+                p.to_str().map(|s| paths.push(s.to_owned()));
+            }
             0
         })?;
         Ok(paths)
