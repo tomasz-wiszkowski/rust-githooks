@@ -49,14 +49,13 @@ impl ShellAction {
         }
     }
 
-    pub fn set_shell_cmd(&mut self, cmd: &str) -> Result<()> {
+    pub fn set_shell_cmd(&mut self, cmd: &str) {
         if let Some(command) = shell_utils::get_shell_command_absolute_path(cmd) {
             if let Some(str_command) = command.to_str().map(|s| s.to_owned()) {
                 self.shell_cmd[0] = str_command;
                 self.available = true;
             }
         }
-        Ok(())
     }
 }
 
@@ -140,11 +139,9 @@ impl ActionTrait for ShellAction {
 
 impl super::ActionTraitInternal for ShellAction {
     fn set_config(&mut self, cfg: Box<dyn GitConfig>) -> Result<()> {
-        let selected = cfg.get_or_default(KEY_ENABLED, "") == VALUE_TRUE;
-        let command = cfg.get_or_default(KEY_COMMAND, &self.shell_cmd[0]);
+        self.selected = cfg.get_or_default(KEY_ENABLED, "") == VALUE_TRUE;
+        self.set_shell_cmd(&cfg.get_or_default(KEY_COMMAND, &self.shell_cmd[0]));
         self.config = Some(cfg);
-        self.set_selected(selected)?;
-        self.set_shell_cmd(&command)?;
         Ok(())
     }
 

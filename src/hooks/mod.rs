@@ -1,5 +1,6 @@
 mod action;
 mod config;
+mod gerrit;
 mod hook;
 mod hooks;
 mod shell_action;

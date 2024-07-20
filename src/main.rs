@@ -67,6 +67,7 @@ fn run_hooks(data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
         .hooks
         .get(hook_name)
         .context(format!("Find hook for {}", hook_name))?;
+    log::info!("Running hooks for {}", hook_name);
     let files = data.repo.get_list_of_new_and_modified_files()?;
 
     env::set_current_dir(data.repo.work_dir().context("Could not get workdir root")?)
