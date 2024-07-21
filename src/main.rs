@@ -30,7 +30,9 @@ fn open_repo() -> Result<Data> {
 }
 
 fn main() -> Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format_target(false)
+        .init();
 
     let args: Vec<String> = env::args().collect();
     let self_name = Path::new(&args[0]).file_name().unwrap().to_str().unwrap();

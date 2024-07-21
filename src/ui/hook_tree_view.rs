@@ -157,18 +157,26 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
-    use crate::hooks::ShellAction;
+    use crate::hooks::test::MockActionItem;
 
     fn create_mock_hooks() -> Hooks {
         // Create mock hooks and actions for testing
         // This is a simplified version and may need to be adjusted based on your actual implementation
-        let action1 = Rc::new(RefCell::new(ShellAction::new_for_test("Action 1")));
-        let mut actions1 = Actions::new();
-        actions1.insert("action1".into(), action1);
+        let mut action1 = MockActionItem::new();
+        action1.expect_is_selected().return_const(true);
+        action1.expect_is_available().return_const(true);
+        action1.expect_name().return_const("Action 1".into());
 
-        let action2 = Rc::new(RefCell::new(ShellAction::new_for_test("Action 2")));
+        let mut actions1 = Actions::new();
+        actions1.insert("action1".into(), Rc::new(RefCell::new(action1)));
+
+        let mut action2 = MockActionItem::new();
+        action2.expect_is_selected().return_const(true);
+        action2.expect_is_available().return_const(true);
+        action2.expect_name().return_const("Action 2".into());
+
         let mut actions2 = Actions::new();
-        actions2.insert("action2".into(), action2);
+        actions2.insert("action2".into(), Rc::new(RefCell::new(action2)));
 
         let hook1 = Hook::new("1".into(), "Hook 1".into(), actions1);
         let hook2 = Hook::new("2".into(), "Hook 2".into(), actions2);

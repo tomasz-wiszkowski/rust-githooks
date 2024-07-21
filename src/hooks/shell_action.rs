@@ -1,5 +1,7 @@
 use crate::repo::GitConfig;
 use anyhow::{bail, ensure, Result};
+use log::info;
+use log::warn;
 use regex::Regex;
 use serde_derive::Deserialize;
 use std::path::Path;
@@ -34,21 +36,6 @@ pub struct ShellAction {
 }
 
 impl ShellAction {
-    #[cfg(test)]
-    pub fn new_for_test(name: &str) -> Self {
-        Self {
-            name: name.into(),
-            priority: 0,
-            file_pattern: Regex::new(".*").unwrap(),
-            shell_cmd: vec![],
-            run_type: RUN_TYPE_PER_FILE.into(),
-
-            selected: false,
-            available: true,
-            config: None,
-        }
-    }
-
     pub fn set_shell_cmd(&mut self, cmd: &str) {
         if let Some(command) = shell_utils::get_shell_command_absolute_path(cmd) {
             if let Some(str_command) = command.to_str().map(|s| s.to_owned()) {
@@ -73,7 +60,7 @@ impl ActionTrait for ShellAction {
             return Ok(());
         }
         if !self.is_available() {
-            println!(
+            warn!(
                 "Cannot run {} - missing command {}",
                 self.name(),
                 self.shell_cmd[0]
@@ -101,8 +88,8 @@ impl ActionTrait for ShellAction {
             let cmd = shell_utils::substitute_command_line(&self.shell_cmd, &substitutions);
 
             match self.run_type.as_str() {
-                RUN_TYPE_PER_COMMIT => println!("Running {}", self.name),
-                RUN_TYPE_PER_FILE => println!("Running {} on {}", self.name, file),
+                RUN_TYPE_PER_COMMIT => info!("Running {}", self.name),
+                RUN_TYPE_PER_FILE => info!("Running {} on {}", self.name, file),
                 _ => anyhow::bail!("Invalid runType {} for action {}", self.run_type, self.name),
             }
 

@@ -21,3 +21,26 @@ pub trait ActionTrait: ActionTraitInternal {
 
 pub type Action = Rc<RefCell<dyn ActionTrait + 'static>>;
 pub type Actions = HashMap<String, Action>;
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+
+    mockall::mock! {
+        pub ActionItem {}
+
+        impl ActionTrait for ActionItem {
+            fn name(&self) -> &str;
+            fn priority(&self) -> i32;
+            fn run(&self, files: &[String], args: &Vec<String>) -> Result<()>;
+            fn is_selected(&self) -> bool;
+            fn is_available(&self) -> bool;
+            fn set_selected(&mut self, want_selected: bool) -> Result<()>;
+        }
+
+        impl ActionTraitInternal for ActionItem {
+            fn set_config(&mut self, cfg: Box<dyn GitConfig>) -> Result<()>;
+            fn check_valid(&self) -> Result<()>;
+        }
+    }
+}

@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use log::warn;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
@@ -42,9 +43,15 @@ pub fn run_shell_command(args: &[String]) -> Result<(String, String)> {
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
 
     if !output.status.success() {
-        println!("Command failed");
-        println!("{}", stdout);
-        println!("{}", stderr);
+        warn!("Command failed");
+        let stdout = stdout.trim();
+        if !stdout.is_empty() {
+            warn!("stdout:\n{}", stdout);
+        }
+        let stderr = stderr.trim();
+        if !stderr.is_empty() {
+            warn!("stderr:\n{}", stderr);
+        }
     }
 
     Ok((stdout, stderr))

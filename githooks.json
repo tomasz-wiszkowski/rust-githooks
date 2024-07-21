@@ -1,0 +1,135 @@
+{
+    "version": "1",
+    "hooks": {
+        "post-commit": {
+            "name": "Post-commit hooks",
+            "actions": {
+                "ClangFmt": {
+                    "name": "Clang Format",
+                    "runType": "perFile",
+                    "priority": 0,
+                    "filePattern": "\\.(c|cc|h|hh|cpp|hpp)$", 
+                    "shellCmd": ["clang-format", "-style=file", "-i", "<file>"]
+                },
+                "ClangTidy": {
+                    "name": "Clang Tidy",
+                    "runType": "perFile",
+                    "priority": 0,
+                    "filePattern": "\\.(c|cc|h|hh|cpp|hpp)$", 
+                    "shellCmd": ["clang-tidy", "-format-style=file", "-i", "<file>"]
+                },
+                "GoFmt": {
+                    "name": "Golang Format",
+                    "runType": "perFile",
+                    "priority": 0,
+                    "filePattern": "\\.go$", 
+                    "shellCmd": ["gofmt", "-w", "<file>"]
+                },
+                "GoVet": {
+                    "name": "Golang Tidy",
+                    "runType": "perCommit",
+                    "priority": 0,
+                    "filePattern": "\\.go$", 
+                    "shellCmd": ["go", "vet"]
+                },
+                "GoModTidy": {
+                    "name": "Golang Module Tidy",
+                    "runType": "perCommit",
+                    "priority": 0,
+                    "filePattern": "^go.mod$", 
+                    "shellCmd": ["go", "mod", "tidy"]
+                },
+                "JavaImportFmt": {
+                    "name": "Java Import Format",
+                    "runType": "perFile",
+                    "priority": 0,
+                    "filePattern": "\\.java$", 
+                    "shellCmd": ["google-java-format", "-a", "-r", "--skip-sorting-imports", "--fix-imports-only", "<file>"]
+                },
+                "PythonFmt": {
+                    "name": "Python Format",
+                    "runType": "perFile",
+                    "priority": 0,
+                    "filePattern": "\\.py$", 
+                    "shellCmd": ["black", "-q", "-t", "py310", "<file>"]
+                },
+                "RustFmt": {
+                    "name": "Rust Format",
+                    "runType": "perFile",
+                    "priority": 0,
+                    "filePattern": "\\.rs$", 
+                    "shellCmd": ["rustfmt", "<file>"]
+                },
+                "RustTidy": {
+                    "name": "Rust Tidy",
+                    "runType": "perCommit",
+                    "priority": 0,
+                    "filePattern": "\\.rs$", 
+                    "shellCmd": ["cargo", "fix", "--allow-dirty"]
+                },
+
+                "ChromeClFmt": {
+                    "name": "Chrome: CL Format",
+                    "runType": "perCommit",
+                    "priority": -2,
+                    "filePattern": ".", 
+                    "shellCmd": ["git-cl", "format"]
+                },
+                "ChromeClPresubmit": {
+                    "name": "Chrome: CL Presubmit",
+                    "runType": "perCommit",
+                    "priority": -1,
+                    "filePattern": ".", 
+                    "shellCmd": ["git-cl", "presubmit"]
+                },
+                "ChromeGnDeps": {
+                    "name": "Chrome: GN CheckDeps",
+                    "runType": "perCommit",
+                    "priority": 0,
+                    "filePattern": "^(.*\\.gn[i]?|DEPS)$", 
+                    "shellCmd": ["gn", "gen", "out/android.debug.arm", "--check"]
+                },
+                "ChromeFieldtrialFmt": {
+                    "name": "Chrome: Fieldtrial Testing Config Format",
+                    "runType": "perFile",
+                    "priority": 0,
+                    "filePattern": "fieldtrial_testing_config\\.json",
+                    "shellCmd": ["python3", "testing/variations/PRESUBMIT.py", "<file>"]
+                },
+                "ChromeHistogramsFmt": {
+                    "name": "Chrome: Histogram Config Format",
+                    "runType": "perFile",
+                    "priority": 0,
+                    "filePattern": "^(histograms|enums)\\.xml$", 
+                    "shellCmd": ["tools/metrics/histograms/validate_format.py", "<file>"]
+                }
+            }
+        },
+        "commit-msg": {
+            "name": "Edit Commit Message hooks",
+            "actions": {
+                "Reflow": {
+                    "name": "Re-flow git commit message for Gerrit",
+                    "runType": "perCommit",
+                    "priority": 0,
+                    "filePattern": ".",
+                    "shellCmd": ["git", "format-commitmsg"]
+                },
+                "GerritChangeId": {
+                    "name": "Gerrit: Add ChangeId tag",
+                    "runType": "perCommit",
+                    "priority": 0,
+                    "filePattern": ".", 
+                    "shellCmd": ["git-add-changeid", "<args>"]
+                },
+                "PrintCommitMsg": {
+                  "name": "Print commit message",
+                  "runType": "perCommit",
+                  "priority": 0,
+                  "filePattern": ".",
+                  "shellCmd": ["/home/ender/bin/test-commit-msg.sh", "<args>"]
+                }
+            }
+        }
+    }
+}

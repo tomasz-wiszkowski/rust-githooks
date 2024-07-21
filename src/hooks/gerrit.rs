@@ -8,6 +8,7 @@ use git2::Repository;
 use log::info;
 use log::warn;
 use regex::Regex;
+use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
@@ -17,8 +18,12 @@ use crate::repo::GitConfig;
 use super::action::ActionTraitInternal;
 use super::ActionTrait;
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GerritChangeIdAction {
+    #[serde(skip_deserializing)]
     enabled: bool,
+    #[serde(skip_deserializing)]
     config: Option<Box<dyn GitConfig>>,
 }
 
@@ -28,13 +33,6 @@ const KEY_ENABLED: &str = "enabled";
 const VALUE_TRUE: &str = "true";
 
 impl GerritChangeIdAction {
-    pub fn new() -> Self {
-        Self {
-            enabled: false,
-            config: None,
-        }
-    }
-
     fn generate_hash(repo: &Repository) -> String {
         let mut hash_data = String::new();
         if let Ok(config) = repo.config() {
@@ -87,8 +85,6 @@ impl GerritChangeIdAction {
     }
 
     fn generate_change_id(file_path: &str) -> Result<()> {
-        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-
         let args: Vec<String> = env::args().collect();
         if args.len() != 2 {
             bail!("{} requires an argument.", args[0]);
@@ -190,6 +186,7 @@ impl ActionTraitInternal for GerritChangeIdAction {
 
     fn set_config(&mut self, cfg: Box<dyn crate::repo::GitConfig>) -> Result<()> {
         self.enabled = cfg.get_or_default(KEY_ENABLED, "") == VALUE_TRUE;
+        self.config = Some(cfg);
         Ok(())
     }
 }
@@ -206,10 +203,12 @@ impl ActionTrait for GerritChangeIdAction {
         };
 
         if want_selected {
-            cfg.set(KEY_ENABLED, VALUE_TRUE)
+            cfg.set(KEY_ENABLED, VALUE_TRUE)?;
         } else {
-            cfg.remove(KEY_ENABLED)
+            cfg.remove(KEY_ENABLED)?;
         }
+        self.enabled = want_selected;
+        Ok(())
     }
 
     fn is_selected(&self) -> bool {
@@ -217,7 +216,7 @@ impl ActionTrait for GerritChangeIdAction {
     }
 
     fn name(&self) -> &str {
-        "Gerrit ChangeId generator"
+        "Gerrit ChangeId generator (built-in)"
     }
 
     fn priority(&self) -> i32 {
@@ -225,8 +224,6 @@ impl ActionTrait for GerritChangeIdAction {
     }
 
     fn run(&self, _files: &[String], args: &Vec<String>) -> Result<()> {
-        info!("Would generate change id for {}", args[0]);
-        Ok(())
-        //        Self::generate_change_id(args[0])
+        Self::generate_change_id(&args[0])
     }
 }
