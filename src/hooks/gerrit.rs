@@ -27,10 +27,11 @@ pub struct GerritChangeIdAction {
     config: Option<Box<dyn GitConfig>>,
 }
 
-const TAG_CHANGE_ID: &'static str = "Change-Id";
-const TAG_CHANGE_LINK: &'static str = "Link";
+// const CONFIG_GERRIT_REVIEW_URL &'str = "gerrit.reviewUrl";
+const TAG_CHANGE_ID: &str = "Change-Id";
 const KEY_ENABLED: &str = "enabled";
 const VALUE_TRUE: &str = "true";
+const SKIP_CHANGE_ID_REGEX: &str = r"(^[a-z]+!|fixup[^a-zA-Z0-9_]?)";
 
 impl GerritChangeIdAction {
     fn generate_hash(repo: &Repository) -> String {
@@ -74,14 +75,15 @@ impl GerritChangeIdAction {
             _ => {
                 // Do not create a change id for squash/fixup commits.
                 let first_line = commit_msg.lines().next().unwrap_or_default();
-                let mut skip_tag_creation =
-                    Regex::new(r"^[a-z][a-z]*! ").unwrap().is_match(first_line);
-                if !skip_tag_creation {
+                let mut skip_tag_creation = Regex::new(SKIP_CHANGE_ID_REGEX)
+                    .unwrap()
+                    .is_match(first_line);
+
+                if skip_tag_creation {
                     info!("Skipping possible squash/fixup commit: {}", first_line);
                 }
 
-                skip_tag_creation |=
-                    trailers.contains_key(TAG_CHANGE_ID) || trailers.contains_key(TAG_CHANGE_LINK);
+                skip_tag_creation |= trailers.contains_key(TAG_CHANGE_ID);
                 !skip_tag_creation
             }
         }
@@ -109,21 +111,14 @@ impl GerritChangeIdAction {
             return Ok(());
         }
 
-        if let Some(review_url) = config.get_string("gerrit.reviewUrl").ok() {
-            trailers.insert(
-                TAG_CHANGE_LINK.into(),
-                format!(
-                    "{}/id/I{}",
-                    review_url.trim_end_matches('/'),
-                    Self::generate_hash(&repo)
-                ),
-            );
-        } else {
-            trailers.insert(
-                TAG_CHANGE_ID.into(),
-                format!("I{}", Self::generate_hash(&repo)),
-            );
-        };
+        // Note: certain Gerrit instances use review url to dictate the change ID.
+        // This may or may not work, depending on whether Gerrit instance can parse back the URL.
+        // To enable this alternative behavior, use `gerrit.reviewUrl` Git config value, and
+        // insert the `Link: <review_url>/id/I<change-id>` trailer.
+        trailers.insert(
+            TAG_CHANGE_ID.into(),
+            format!("I{}", Self::generate_hash(&repo)),
+        );
 
         Ok(fs::write(
             &file_path,
@@ -278,12 +273,32 @@ mod test {
     }
 
     #[test]
-    fn test_should_generate_change_id_not_needed_fixup() {
+    fn test_should_generate_change_id_not_needed_fixup_1() {
         assert_eq!(
             false,
             GerritChangeIdAction::should_generate_change_id(
                 "true",
-                "fixup! Commit Message",
+                "xxx! Commit Message",
+                &BTreeMap::new()
+            )
+        );
+    }
+
+    #[test]
+    fn test_should_generate_change_id_not_needed_fixup_2() {
+        assert_eq!(
+            false,
+            GerritChangeIdAction::should_generate_change_id("true", "fixup", &BTreeMap::new())
+        );
+    }
+
+    #[test]
+    fn test_should_generate_change_id_not_needed_fixup_3() {
+        assert_eq!(
+            false,
+            GerritChangeIdAction::should_generate_change_id(
+                "true",
+                "fixup: asdf",
                 &BTreeMap::new()
             )
         );
@@ -293,16 +308,6 @@ mod test {
     fn test_should_generate_change_id_not_needed_change_id_exists() {
         let mut map = BTreeMap::new();
         map.insert(TAG_CHANGE_ID.to_owned(), "1234".to_owned());
-        assert_eq!(
-            false,
-            GerritChangeIdAction::should_generate_change_id("true", "Commit Message", &map)
-        );
-    }
-
-    #[test]
-    fn test_should_generate_change_id_not_needed_link_exists() {
-        let mut map = BTreeMap::new();
-        map.insert(TAG_CHANGE_LINK.to_owned(), "1234".to_owned());
         assert_eq!(
             false,
             GerritChangeIdAction::should_generate_change_id("true", "Commit Message", &map)

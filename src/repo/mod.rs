@@ -3,7 +3,6 @@ mod repo;
 
 pub use config::GitConfig;
 pub use config::GitConfigManager;
-pub use config::GitConfigManagerImpl;
 pub use repo::GitRepo;
 
 #[cfg(test)]

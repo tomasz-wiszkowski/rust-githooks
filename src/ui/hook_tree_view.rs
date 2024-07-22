@@ -152,8 +152,6 @@ impl HooksTreeView {
 mod tests {
     use super::*;
     use crate::hooks::Actions;
-    use crate::hooks::Hook;
-    use crate::hooks::Hooks;
     use std::cell::RefCell;
     use std::rc::Rc;
 
