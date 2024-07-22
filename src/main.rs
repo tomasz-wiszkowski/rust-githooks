@@ -9,6 +9,7 @@ use hooks::HooksExt;
 use repo::GitRepo;
 use std::env;
 use std::fs;
+use std::io::Write;
 use std::os::unix::fs as unix_fs;
 use std::path::Path;
 use ui::HooksTreeView;
@@ -31,7 +32,17 @@ fn open_repo() -> Result<Data> {
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .format_target(false)
+        .format(|buf, record| {
+            let now = chrono::Local::now();
+            let style = buf.default_level_style(record.level());
+            writeln!(
+                buf,
+                "[{style}{} {}{style:#}] {}",
+                now.format("%H:%M:%S"),
+                record.level(),
+                record.args()
+            )
+        })
         .init();
 
     let args: Vec<String> = env::args().collect();
