@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use git2::{Delta, Repository};
+use log::info;
 use std::path::Path;
 use std::rc::Rc;
 
@@ -33,7 +34,11 @@ impl GitRepo {
     }
 
     pub fn get_list_of_new_and_modified_files(&self) -> Result<Vec<String>> {
-        let head = self.repo.head()?;
+        let Ok(head) = self.repo.head() else {
+            info!("Could not evaluate HEAD - assuming new repository.");
+            return Ok(Vec::default());
+        };
+
         let commit = self.repo.find_commit(head.target().unwrap())?;
         let parent = match commit.parent(0) {
             Ok(parent) => parent,
@@ -71,7 +76,16 @@ impl GitRepo {
     }
 
     pub fn get_list_of_all_files(&self) -> Result<Vec<String>> {
-        let tree = self.repo.head()?.peel_to_tree()?;
+        let Ok(head) = self.repo.head() else {
+            info!("Could not evaluate HEAD - assuming new repository.");
+            return Ok(Vec::default());
+        };
+
+        let Ok(tree) = head.peel_to_tree() else {
+            info!("Could not retrieve tree data. Likely new repository.");
+            return Ok(Vec::default());
+        };
+
         let mut paths = Vec::new();
         tree.walk(git2::TreeWalkMode::PreOrder, |entry_path, entry| {
             let p = Path::new(entry_path);
