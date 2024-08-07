@@ -1,12 +1,14 @@
 use anyhow::Result;
 
 use git2::{Delta, Repository};
+use git2::{FileMode, ObjectType};
 use log::info;
 use std::path::Path;
 use std::rc::Rc;
 
-use super::config::GitConfigManager;
-use super::config::GitConfigManagerImpl;
+use super::GitConfigManager;
+use super::GitConfigManagerImpl;
+use super::Item;
 
 pub struct GitRepo {
     repo: Rc<Repository>,
@@ -33,7 +35,7 @@ impl GitRepo {
         &self.config
     }
 
-    pub fn get_list_of_new_and_modified_files(&self) -> Result<Vec<String>> {
+    pub fn get_list_of_new_and_modified_files(&self) -> Result<Vec<Item>> {
         let Ok(head) = self.repo.head() else {
             info!("Could not evaluate HEAD - assuming new repository.");
             return Ok(Vec::default());
@@ -60,14 +62,24 @@ impl GitRepo {
             let action = delta.status();
             match action {
                 Delta::Deleted => continue,
-                Delta::Added | Delta::Modified => paths.push(
-                    delta
+                Delta::Added | Delta::Modified => {
+                    let item_path = delta
                         .new_file()
                         .path()
                         .unwrap()
                         .to_string_lossy()
-                        .to_string(),
-                ),
+                        .to_string();
+
+                    paths.push(match delta.new_file().mode() {
+                        FileMode::Unreadable => Item::Unknown(item_path),
+                        FileMode::Blob | FileMode::BlobGroupWritable | FileMode::BlobExecutable => {
+                            Item::File(item_path)
+                        }
+                        FileMode::Tree => Item::Dir(item_path),
+                        FileMode::Link => Item::Link(item_path),
+                        FileMode::Commit => Item::Commit(item_path),
+                    });
+                }
                 _ => {}
             }
         }
@@ -75,7 +87,7 @@ impl GitRepo {
         Ok(paths)
     }
 
-    pub fn get_list_of_all_files(&self) -> Result<Vec<String>> {
+    pub fn get_list_of_all_files(&self) -> Result<Vec<Item>> {
         let Ok(head) = self.repo.head() else {
             info!("Could not evaluate HEAD - assuming new repository.");
             return Ok(Vec::default());
@@ -91,7 +103,16 @@ impl GitRepo {
             let p = Path::new(entry_path);
             if let Some(name) = entry.name() {
                 let p = p.join(name);
-                p.to_str().map(|s| paths.push(s.to_owned()));
+                p.to_str().map(|s| {
+                    let s = s.to_owned();
+                    paths.push(match entry.kind().unwrap_or(ObjectType::Any) {
+                        ObjectType::Blob => Item::File(s),
+                        ObjectType::Commit => Item::Commit(s),
+                        ObjectType::Tree => Item::Dir(s),
+                        ObjectType::Tag => Item::Commit(s),
+                        ObjectType::Any => Item::Unknown(s),
+                    });
+                });
             }
             0
         })?;

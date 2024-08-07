@@ -1,4 +1,5 @@
 use crate::repo::GitConfig;
+use crate::repo::Item;
 use anyhow::Result;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -13,7 +14,7 @@ pub trait ActionTraitInternal {
 pub trait ActionTrait: ActionTraitInternal {
     fn name(&self) -> &str;
     fn priority(&self) -> i32;
-    fn run(&self, files: &[String], args: &Vec<String>) -> Result<()>;
+    fn run(&self, items: &[Item], args: &Vec<String>) -> Result<()>;
     fn is_selected(&self) -> bool;
     fn is_available(&self) -> bool;
     fn set_selected(&mut self, want_selected: bool) -> Result<()>;
@@ -32,7 +33,7 @@ pub mod test {
         impl ActionTrait for ActionItem {
             fn name(&self) -> &str;
             fn priority(&self) -> i32;
-            fn run(&self, files: &[String], args: &Vec<String>) -> Result<()>;
+            fn run(&self, files: &[Item], args: &Vec<String>) -> Result<()>;
             fn is_selected(&self) -> bool;
             fn is_available(&self) -> bool;
             fn set_selected(&mut self, want_selected: bool) -> Result<()>;

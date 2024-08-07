@@ -14,6 +14,7 @@ use std::env;
 use std::fs;
 
 use crate::repo::GitConfig;
+use crate::repo::Item;
 
 use super::action::ActionTraitInternal;
 use super::ActionTrait;
@@ -229,7 +230,7 @@ impl ActionTrait for GerritChangeIdAction {
         0
     }
 
-    fn run(&self, _files: &[String], args: &Vec<String>) -> Result<()> {
+    fn run(&self, _files: &[Item], args: &Vec<String>) -> Result<()> {
         Self::generate_change_id(&args[0])
     }
 }
