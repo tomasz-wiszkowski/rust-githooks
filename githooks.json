@@ -138,6 +138,9 @@
                     "filePattern": ".", 
                     "shellCmd": ["git-add-changeid", "<args>"]
                 },
+                "Submodule": {
+                    "type": "submodule"
+                },
                 "GerritChangeIdNew": {
                     "type": "gerrit"
                 },

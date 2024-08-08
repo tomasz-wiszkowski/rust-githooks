@@ -62,6 +62,7 @@ impl GitRepo {
             let action = delta.status();
             match action {
                 Delta::Deleted => continue,
+
                 Delta::Added | Delta::Modified => {
                     let item_path = delta
                         .new_file()
@@ -80,6 +81,7 @@ impl GitRepo {
                         FileMode::Commit => Item::Commit(item_path),
                     });
                 }
+
                 _ => {}
             }
         }
