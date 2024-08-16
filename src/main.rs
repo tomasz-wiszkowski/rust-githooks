@@ -6,6 +6,7 @@ use hooks::Action;
 use hooks::Hook;
 use hooks::Hooks;
 use hooks::HooksExt;
+use log::info;
 use repo::GitRepo;
 use std::env;
 use std::fs;
@@ -80,15 +81,22 @@ fn run_hooks(data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
         .hooks
         .get(hook_name)
         .context(format!("Find hook for {}", hook_name))?;
-    log::info!("Running hooks for {}", hook_name);
-    let files = data.repo.get_list_of_new_and_modified_files()?;
+    info!("Running hooks for {}", hook_name);
+
+    let items = match hook_name {
+        "commit-msg" | "pre-commit" => data.repo.get_pre_commit_items()?,
+        _ => data.repo.get_post_commit_items()?,
+    };
+
+    info!("Analysing items:");
+    items.iter().for_each(|i| info!("{:?}", i));
 
     env::set_current_dir(data.repo.work_dir().context("Could not get workdir root")?)
         .context("Run: cannot open work directory")?;
 
     let actions = get_actions_sorted_by_priority(hook);
     for a in actions {
-        a.borrow().run(&files, &args)?;
+        a.borrow().run(&items, &args)?;
     }
 
     Ok(())

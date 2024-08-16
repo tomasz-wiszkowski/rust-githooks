@@ -1,7 +1,6 @@
 use anyhow::bail;
 use anyhow::Result;
 
-use log::info;
 use log::warn;
 use serde_derive::Deserialize;
 
@@ -71,7 +70,6 @@ impl ActionTrait for SubmoduleAction {
         items
             .into_iter()
             .map(|i| {
-                info!("{:?}", i);
                 if let Item::Commit(name) = i {
                     bail!("Attempting to include submodule {}. Aborting", name);
                 }

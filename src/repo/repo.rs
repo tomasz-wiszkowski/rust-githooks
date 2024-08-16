@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use git2::{Delta, Repository};
+use git2::{Delta, DiffOptions, Repository};
 use git2::{FileMode, ObjectType};
 use log::info;
 use std::path::Path;
@@ -35,7 +35,56 @@ impl GitRepo {
         &self.config
     }
 
-    pub fn get_list_of_new_and_modified_files(&self) -> Result<Vec<Item>> {
+    pub fn get_pre_commit_items(&self) -> Result<Vec<Item>> {
+        info!("Querying pre-commit items");
+        let Ok(head) = self.repo.head() else {
+            info!("Could not evaluate HEAD - assuming new repository.");
+            return Ok(Vec::default());
+        };
+
+        let commit = self.repo.find_commit(head.target().unwrap())?;
+
+        let tree = commit.tree().ok();
+        let changes = self.repo.diff_tree_to_index(
+            tree.as_ref(),
+            None,
+            Some(DiffOptions::new().ignore_submodules(false)),
+        )?;
+
+        let mut paths = Vec::new();
+        for delta in changes.deltas() {
+            let action = delta.status();
+            match action {
+                Delta::Deleted => continue,
+
+                Delta::Added | Delta::Modified => {
+                    let item_path = delta
+                        .new_file()
+                        .path()
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string();
+
+                    paths.push(match delta.new_file().mode() {
+                        FileMode::Unreadable => Item::Unknown(item_path),
+                        FileMode::Blob | FileMode::BlobGroupWritable | FileMode::BlobExecutable => {
+                            Item::File(item_path)
+                        }
+                        FileMode::Tree => Item::Dir(item_path),
+                        FileMode::Link => Item::Link(item_path),
+                        FileMode::Commit => Item::Commit(item_path),
+                    });
+                }
+
+                _ => {}
+            }
+        }
+
+        Ok(paths)
+    }
+
+    pub fn get_post_commit_items(&self) -> Result<Vec<Item>> {
+        info!("Querying post-commit items");
         let Ok(head) = self.repo.head() else {
             info!("Could not evaluate HEAD - assuming new repository.");
             return Ok(Vec::default());
@@ -53,9 +102,11 @@ impl GitRepo {
         let tree1 = commit.tree().ok();
         let tree2 = parent.tree().ok();
 
-        let changes = self
-            .repo
-            .diff_tree_to_tree(tree2.as_ref(), tree1.as_ref(), None)?;
+        let changes = self.repo.diff_tree_to_tree(
+            tree2.as_ref(),
+            tree1.as_ref(),
+            Some(DiffOptions::new().ignore_submodules(false)),
+        )?;
 
         let mut paths = Vec::new();
         for delta in changes.deltas() {
