@@ -6,6 +6,7 @@ use hooks::Action;
 use hooks::Hook;
 use hooks::Hooks;
 use hooks::HooksExt;
+use log::debug;
 use log::info;
 use repo::GitRepo;
 use std::env;
@@ -88,8 +89,8 @@ fn run_hooks(data: Data, hook_name: &str, args: Vec<String>) -> Result<()> {
         _ => data.repo.get_post_commit_items()?,
     };
 
-    info!("Analysing items:");
-    items.iter().for_each(|i| info!("{:?}", i));
+    debug!("Analysing items:");
+    items.iter().for_each(|i| debug!("{:?}", i));
 
     env::set_current_dir(data.repo.work_dir().context("Could not get workdir root")?)
         .context("Run: cannot open work directory")?;

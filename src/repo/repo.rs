@@ -94,7 +94,7 @@ impl GitRepo {
         let parent = match commit.parent(0) {
             Ok(parent) => parent,
             Err(_) => {
-                log::info!("Unable to query parent commit - assuming first commit");
+                info!("Unable to query parent commit - assuming first commit");
                 return self.get_list_of_all_files();
             }
         };
