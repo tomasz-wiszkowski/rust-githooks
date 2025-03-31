@@ -24,6 +24,7 @@ tui = "0"
 openssl = { version = "0", features = ["vendored"] }
 mockall = "0"
 mockall_derive = "0"
+roxmltree = "*"
 
 [dev-dependencies]
 mockall = "0"

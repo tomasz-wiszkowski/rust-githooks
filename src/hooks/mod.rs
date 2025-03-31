@@ -1,4 +1,5 @@
 mod action;
+mod android_resource_action;
 mod config;
 mod gerrit;
 mod hook;
@@ -10,6 +11,7 @@ mod submodule_action;
 pub use action::Action;
 pub use action::ActionTrait;
 pub use action::Actions;
+use android_resource_action::AndroidResourceFormatterAction;
 use gerrit::GerritChangeIdAction;
 pub use hook::Hook;
 pub use hooks::Hooks;

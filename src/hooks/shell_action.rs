@@ -6,7 +6,6 @@ use log::warn;
 use regex::Regex;
 use serde_derive::Deserialize;
 use std::collections::HashMap;
-use std::path::Path;
 
 use super::shell_utils;
 use super::shell_utils::Substitution;
@@ -113,8 +112,10 @@ impl ActionTrait for ShellAction {
                 };
 
                 // Pick only files that match pattern.
-                let just_file_name = Path::new(name).file_name().unwrap().to_str().unwrap();
-                if !self.file_pattern.is_match(just_file_name) {
+                // let just_file_name = Path::new(name).file_name().unwrap().to_str().unwrap();
+                // Keep whole names, because paths carry important details (e.g.
+                // "java/res/values/dimens.xml" vs "enums.xml")
+                if !self.file_pattern.is_match(name) {
                     return None;
                 }
 
