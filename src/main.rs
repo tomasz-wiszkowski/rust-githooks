@@ -68,11 +68,7 @@ fn main() -> Result<()> {
 }
 
 fn get_actions_sorted_by_priority(hook: &Hook) -> Vec<Action> {
-    let mut res = hook
-        .actions()
-        .iter()
-        .map(|(_, a)| a.clone())
-        .collect::<Vec<_>>();
+    let mut res = hook.actions().values().cloned().collect::<Vec<_>>();
     res.sort_by_key(|a| a.borrow().priority());
     res
 }
