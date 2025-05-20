@@ -36,6 +36,99 @@ impl ActionTraitInternal for AndroidResourceFormatterAction {
     }
 }
 
+/// Computes the minimum indentation of the input string.
+///
+/// This function ignores the first line of the input string when calculating the minimum indentation. This is because the first
+/// line may have a different indentation level than the rest of the lines, when it directly follows the XML comment markup.
+/// The function returns the minimum indentation level found in the remaining lines, or 0 if there are no lines to process.
+///
+/// # Arguments
+///   input: A string slice that contains the input text.
+///
+/// # Returns
+///   The minimum indentation level found in the input string, or 0 if there are no lines to process.
+fn compute_indent(input: &str) -> usize {
+    let lines = input.lines().collect::<Vec<_>>();
+    if lines.is_empty() {
+        return 0;
+    }
+    let min_indent = lines
+        .iter()
+        .skip(1) // First line may be indented differently, so ignore that
+        .filter_map(|line| line.chars().position(|c| !c.is_whitespace()))
+        .min()
+        .unwrap_or(0);
+    min_indent
+}
+
+/// Dedents the input string by removing the specified number of leading spaces from each line.
+///
+/// This function is useful for normalizing the indentation of a block of text. The first line is treated specially, as it may
+/// have a different indentation level than the rest of the lines when it directly follows the XML comment markup.
+///
+/// # Arguments
+///  input: A string slice that contains the input text.
+///  indent: The number of leading spaces to remove from each line.
+///
+/// # Returns
+///   A new string with the specified number of leading spaces removed from each line.
+fn dedent(input: &str, indent: usize) -> String {
+    let lines = input.lines().collect::<Vec<_>>();
+    if lines.is_empty() {
+        return String::new();
+    }
+    lines[0].trim().to_owned()
+        + "\n"
+        + &lines
+            .iter()
+            .skip(1)
+            .map(|line| &line[indent..])
+            .collect::<Vec<_>>()
+            .join("\n")
+}
+
+/// Indents the input string by adding the specified number of leading spaces to each line.
+///
+/// This function is useful for formatting a block of text to align with a specific indentation level.
+///
+/// # Arguments
+///   input: A string slice that contains the input text.
+///   indent: The number of leading spaces to add to each line.
+///
+/// # Returns
+///   A new string with the specified number of leading spaces added to each line.
+fn indent(input: &str, indent: usize) -> String {
+    let lines = input.lines().collect::<Vec<_>>();
+    if lines.is_empty() {
+        return String::new();
+    }
+    lines
+        .iter()
+        .map(|line| format!("{}{}", " ".repeat(indent), line))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Processes the input string by removing the leading spaces and re-indenting it.
+///
+/// This function is useful for normalizing the indentation of a block of text.
+/// It computes the minimum indentation of the input string, removes that indentation from each line,
+/// and then re-indents the text to the specified target indentation level.
+///
+/// # Arguments
+///   input: A string slice that contains the input text.
+///   target_indent: The target indentation level to apply to the processed text.
+///
+/// # Returns
+///   A new string with the specified target indentation level applied to each line.
+fn process_comment(input: &str, target_indent: usize) -> String {
+    let def_indent = compute_indent(input);
+
+    let result = dedent(input, def_indent);
+
+    indent(&result, target_indent)
+}
+
 const INDENT: &str = "  ";
 const LINE_LIMIT: usize = 100;
 
@@ -71,7 +164,9 @@ impl AndroidResourceFormatterAction {
                 let text = node.text().unwrap_or("").trim();
                 // TODO: reflow comments.
                 if text.contains('\n') {
-                    out.push_str(&format!("{pad}<!--\n{pad}{text}\n{pad}-->\n"));
+                    let text = pad.clone() + text;
+                    let processed_text = process_comment(&text, pad.len());
+                    out.push_str(&format!("{pad}<!--\n{processed_text}\n{pad}-->\n"));
                 } else {
                     out.push_str(&format!("{pad}<!-- {text} -->\n"));
                 }
@@ -115,7 +210,7 @@ impl AndroidResourceFormatterAction {
         out.push_str(&format!("{pad}<{tag}"));
         for a in &attrs {
             if multiline_attrs {
-                out.push_str(&format!("\n{pad}{INDENT}{a}"));
+                out.push_str(&format!("\n{pad}{INDENT}{INDENT}{a}"));
             } else {
                 out.push_str(&format!(" {a}"));
             }
