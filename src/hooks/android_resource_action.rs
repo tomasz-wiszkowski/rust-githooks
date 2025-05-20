@@ -139,7 +139,7 @@ impl AndroidResourceFormatterAction {
 
         let output = Self::format_doc(&doc);
 
-        let outfile = infile.to_owned() + ".fmt";
+        let outfile = infile.to_owned();
         Ok(fs::write(outfile, output.as_bytes())?)
     }
 
