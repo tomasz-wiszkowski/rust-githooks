@@ -52,16 +52,16 @@ impl AndroidResourceFormatterAction {
 
     fn format_doc(doc: &Document) -> String {
         // roxml strips the initial <?xml ... ?> declaration
-        let mut output = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n".to_owned();
+        let mut output = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n".to_owned();
         for node in doc.root().children() {
-            Self::format_node(node, 0, true, &mut output);
+            Self::format_node(node, 0, false, &mut output);
         }
         output
     }
 
     // ---------------- core recursive formatter ----------------
-    fn format_node(node: Node, indent: usize, is_first: bool, out: &mut String) {
-        if !is_first {
+    fn format_node(node: Node, indent: usize, add_linebreak: bool, out: &mut String) -> bool {
+        if add_linebreak {
             out.push('\n');
         }
 
@@ -70,14 +70,21 @@ impl AndroidResourceFormatterAction {
                 let pad = INDENT.repeat(indent);
                 let text = node.text().unwrap_or("").trim();
                 // TODO: reflow comments.
-                out.push_str(&format!("{pad}<!-- {text} -->\n"));
+                if text.contains('\n') {
+                    out.push_str(&format!("{pad}<!--\n{pad}{text}\n{pad}-->\n"));
+                } else {
+                    out.push_str(&format!("{pad}<!-- {text} -->\n"));
+                }
+                false
             }
+
             NodeType::Element => Self::format_element(node, indent, out),
-            _ => {}
+
+            _ => false,
         }
     }
 
-    fn format_element(node: Node, indent: usize, out: &mut String) {
+    fn format_element(node: Node, indent: usize, out: &mut String) -> bool {
         let pad = INDENT.repeat(indent);
         let tag = Self::qualified_tag_name(node);
 
@@ -85,12 +92,14 @@ impl AndroidResourceFormatterAction {
         let mut attrs = Vec::new();
         let mut inline_len = tag.len() + 2; // "<tag" + space
 
-        for a in node.namespaces() {
-            let name = a.name().unwrap_or("");
-            let uri = a.uri();
-            let pair = format!("xmlns:{name}=\"{uri}\"");
-            inline_len += 1 + pair.len();
-            attrs.push(pair);
+        if indent == 0 {
+            for a in node.namespaces() {
+                let name = a.name().unwrap_or("");
+                let uri = a.uri();
+                let pair = format!("xmlns:{name}=\"{uri}\"");
+                inline_len += 1 + pair.len();
+                attrs.push(pair);
+            }
         }
 
         for a in node.attributes() {
@@ -100,7 +109,7 @@ impl AndroidResourceFormatterAction {
             inline_len += 1 + pair.len();
             attrs.push(pair);
         }
-        let multiline_attrs = attrs.len() > 1 || inline_len > LINE_LIMIT;
+        let multiline_attrs = attrs.len() > 3 || inline_len > LINE_LIMIT;
 
         // ---------- opening tag ----------
         out.push_str(&format!("{pad}<{tag}"));
@@ -128,14 +137,14 @@ impl AndroidResourceFormatterAction {
         if inline_leaf {
             out.push_str(&Self::escape_text(text_content));
             out.push_str(&format!("</{tag}>\n"));
-            return;
+            return multiline_attrs;
         }
 
         if !has_elements_or_comments && text_content.is_empty() {
             // self‑closing tag
             out.pop();
             out.push_str("/>\n");
-            return;
+            return multiline_attrs;
         }
 
         out.push('\n'); // newline after opening tag
@@ -149,21 +158,29 @@ impl AndroidResourceFormatterAction {
         }
 
         // recurse into children (elements, comments, additional text nodes)
+        let mut add_newline = multiline_attrs;
         let mut is_first = true;
         for child in children {
             match child.node_type() {
                 NodeType::Comment => {
-                    Self::format_node(child, indent + 1, is_first, out);
+                    Self::format_node(child, indent + 1, !is_first, out);
+                    add_newline = false;
                 }
                 NodeType::Element => {
-                    Self::format_node(child, indent + 1, true, out);
+                    add_newline = Self::format_node(child, indent + 1, add_newline, out);
                     is_first = false;
                 }
                 _ => {}
             }
         }
 
+        if multiline_attrs {
+            // If we started with an empty line, end with one too
+            out.push('\n');
+        }
         out.push_str(&format!("{pad}</{tag}>\n"));
+
+        multiline_attrs || has_elements_or_comments
     }
 
     // ---------------- helpers ----------------
@@ -268,7 +285,7 @@ mod tests {
 
     #[test]
     fn test_format_node() {
-        let input = r#"<?xml version="1.0" encoding="UTF-8"?><!-- Top-level comment --><resources xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"><!-- A string with escaped characters --><string name="welcome_message">Welcome to &lt;b&gt;MyApp&lt;/b&gt;!</string><!-- A string-array with nested items --><string-array name="days_of_week"><item>Sunday</item><item>Monday</item><item>Tuesday</item><item>Wednesday</item><item>Thursday</item><item>Friday</item><item>Saturday</item></string-array><!-- A plurals element with quantity attributes --><plurals name="number_of_items"><item quantity="zero">No items</item><item quantity="one">One item</item><item quantity="other">%d items</item></plurals><!-- A style with deeply nested items and long attributes --><style name="AppTheme" parent="Theme.MaterialComponents.DayNight.DarkActionBar"><item name="colorPrimary">@color/primary</item><item name="colorPrimaryVariant">@color/primary_variant</item><item name="android:windowBackground">@drawable/bg_main</item></style><!-- A color entry with a comment inline --><color name="primary">#6200EE</color><!-- Primary color --><!-- Dimensions with decimals and comments above --><!-- Spacing used in lists --><dimen name="list_item_spacing">8dp</dimen><!-- Nested elements with attributes that might wrap --><selector><item android:state_pressed="true" android:drawable="@color/primary_dark" /><item android:drawable="@color/primary" /></selector><!-- Include tag example --><include layout="@layout/header" /><!-- Empty element with many attributes --><item name="buttonStyle" type="style" parent="Widget.AppCompat.Button" /><!-- CDATA section example --><string name="html_content"><![CDATA[<html> <body> <h1>Welcome!</h1> </body> </html>]]></string><!-- Multi-attribute element example 1 --><item name="custom_button_style" type="style" parent="Widget.MaterialComponents.Button" /><!-- Multi-attribute element example 2 --><TextView android:id="@+id/sample_text" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="16dp" android:text="Sample Text" android:textColor="@color/primary" android:textStyle="bold" /><!-- Inline nested element case --><string-array name="single_line_array"><item>OnlyOne</item></string-array><!-- Long attributes with short child inlined --><selector android:layout_width="match_parent" android:layout_height="wrap_content" android:state_enabled="true"><item android:drawable="@color/primary" /></selector><!-- Mixed length children --><string-array name="mixed_length_array"><item>Short</item><item>This is a very long item that might typically be broken into its own line to ensure readability and clarity within the XML formatting context.</item></string-array><!-- Nested elements with comments inside --><plurals name="commented_plural"><!-- Zero case --><item quantity="zero">None</item><!-- Other case with formatting --><item quantity="other">%d items available</item></plurals></resources>"#;
+        let input = r#"<?xml version="1.0" encoding="utf-8"?><!-- Top-level comment --><resources xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"><!-- A string with escaped characters --><string name="welcome_message">Welcome to &lt;b&gt;MyApp&lt;/b&gt;!</string><!-- A string-array with nested items --><string-array name="days_of_week"><item>Sunday</item><item>Monday</item><item>Tuesday</item><item>Wednesday</item><item>Thursday</item><item>Friday</item><item>Saturday</item></string-array><!-- A plurals element with quantity attributes --><plurals name="number_of_items"><item quantity="zero">No items</item><item quantity="one">One item</item><item quantity="other">%d items</item></plurals><!-- A style with deeply nested items and long attributes --><style name="AppTheme" parent="Theme.MaterialComponents.DayNight.DarkActionBar"><item name="colorPrimary">@color/primary</item><item name="colorPrimaryVariant">@color/primary_variant</item><item name="android:windowBackground">@drawable/bg_main</item></style><!-- A color entry with a comment inline --><color name="primary">#6200EE</color><!-- Primary color --><!-- Dimensions with decimals and comments above --><!-- Spacing used in lists --><dimen name="list_item_spacing">8dp</dimen><!-- Nested elements with attributes that might wrap --><selector><item android:state_pressed="true" android:drawable="@color/primary_dark" /><item android:drawable="@color/primary" /></selector><!-- Include tag example --><include layout="@layout/header" /><!-- Empty element with many attributes --><item name="buttonStyle" type="style" parent="Widget.AppCompat.Button" /><!-- CDATA section example --><string name="html_content"><![CDATA[<html> <body> <h1>Welcome!</h1> </body> </html>]]></string><!-- Multi-attribute element example 1 --><item name="custom_button_style" type="style" parent="Widget.MaterialComponents.Button" /><!-- Multi-attribute element example 2 --><TextView android:id="@+id/sample_text" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="16dp" android:text="Sample Text" android:textColor="@color/primary" android:textStyle="bold" /><!-- Inline nested element case --><string-array name="single_line_array"><item>OnlyOne</item></string-array><!-- Long attributes with short child inlined --><selector android:layout_width="match_parent" android:layout_height="wrap_content" android:state_enabled="true"><item android:drawable="@color/primary" /></selector><!-- Mixed length children --><string-array name="mixed_length_array"><item>Short</item><item>This is a very long item that might typically be broken into its own line to ensure readability and clarity within the XML formatting context.</item></string-array><!-- Nested elements with comments inside --><plurals name="commented_plural"><!-- Zero case --><item quantity="zero">None</item><!-- Other case with formatting --><item quantity="other">%d items available</item></plurals></resources>"#;
         let doc = Document::parse(input).unwrap();
         let output = AndroidResourceFormatterAction::format_doc(&doc);
         println!("{output}");
