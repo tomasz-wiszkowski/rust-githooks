@@ -3,8 +3,10 @@ use std::fs;
 use anyhow::Result;
 
 use log::warn;
+use regex::Regex;
 use roxmltree::{Document, Node, NodeType};
 use serde_derive::Deserialize;
+use std::sync::OnceLock;
 
 use crate::repo::GitConfig;
 use crate::repo::Item;
@@ -23,6 +25,25 @@ pub struct AndroidResourceFormatterAction {
 
 const KEY_ENABLED: &str = "enabled";
 const VALUE_TRUE: &str = "true";
+
+#[derive(Debug, Clone)]
+enum CommentType {
+    PrefixComment,
+    SuffixComment,
+}
+
+#[derive(Debug)]
+struct SuffixCommentRule {
+    name: &'static str,
+    pattern: &'static str,
+}
+
+const SUFFIX_COMMENT_RULES: &[SuffixCommentRule] = &[SuffixCommentRule {
+    name: "lint_then_change",
+    pattern: r"LINT\.ThenChange",
+}];
+
+static COMPILED_RULES: OnceLock<Vec<(String, Regex)>> = OnceLock::new();
 
 impl ActionTraitInternal for AndroidResourceFormatterAction {
     fn check_valid(&self) -> Result<()> {
@@ -133,6 +154,23 @@ const INDENT: &str = "    ";
 const WRAP_INDENT: &str = "    ";
 const LINE_LIMIT: usize = 100;
 
+/// Classifies a comment based on its content
+fn classify_comment(text: &str) -> CommentType {
+    let compiled_rules = COMPILED_RULES.get_or_init(|| {
+        SUFFIX_COMMENT_RULES
+            .iter()
+            .map(|rule| (rule.name.to_string(), Regex::new(rule.pattern).unwrap()))
+            .collect()
+    });
+
+    for (_name, pattern) in compiled_rules {
+        if pattern.is_match(text) {
+            return CommentType::SuffixComment;
+        }
+    }
+    CommentType::PrefixComment
+}
+
 impl AndroidResourceFormatterAction {
     fn format_file(&self, infile: &str) -> Result<()> {
         let input = fs::read_to_string(infile).expect("Failed to read input.xml");
@@ -155,14 +193,22 @@ impl AndroidResourceFormatterAction {
 
     // ---------------- core recursive formatter ----------------
     fn format_node(node: Node, indent: usize, add_linebreak: bool, out: &mut String) -> bool {
-        if add_linebreak {
-            out.push('\n');
-        }
-
         match node.node_type() {
             NodeType::Comment => {
-                let pad = INDENT.repeat(indent);
                 let text = node.text().unwrap_or("").trim();
+                let comment_type = classify_comment(text);
+
+                // Apply spacing rules based on comment type and position
+                let should_add_linebreak = match comment_type {
+                    CommentType::PrefixComment => add_linebreak, // Respect position-based logic
+                    CommentType::SuffixComment => add_linebreak, // Adjacent to previous
+                };
+
+                if should_add_linebreak {
+                    out.push('\n');
+                }
+
+                let pad = INDENT.repeat(indent);
                 // TODO: reflow comments.
                 if text.contains('\n') {
                     let text = pad.clone() + text;
@@ -171,12 +217,27 @@ impl AndroidResourceFormatterAction {
                 } else {
                     out.push_str(&format!("{pad}<!-- {text} -->\n"));
                 }
-                false
+
+                // Return spacing behavior for next element
+                match comment_type {
+                    CommentType::PrefixComment => false, // Adjacent to next
+                    CommentType::SuffixComment => true,  // Empty line after
+                }
             }
 
-            NodeType::Element => Self::format_element(node, indent, out),
+            NodeType::Element => {
+                if add_linebreak {
+                    out.push('\n');
+                }
+                Self::format_element(node, indent, out)
+            }
 
-            _ => false,
+            _ => {
+                if add_linebreak {
+                    out.push('\n');
+                }
+                false
+            }
         }
     }
 
@@ -256,14 +317,21 @@ impl AndroidResourceFormatterAction {
         // recurse into children (elements, comments, additional text nodes)
         let mut add_newline = multiline_attrs;
         let mut is_first = true;
-        for child in children {
+        for child in children.iter() {
             match child.node_type() {
                 NodeType::Comment => {
-                    Self::format_node(child, indent + 1, !is_first, out);
-                    add_newline = false;
+                    let text = child.text().unwrap_or("").trim();
+                    let comment_type = classify_comment(text);
+
+                    let should_add_linebreak = match comment_type {
+                        CommentType::PrefixComment => !is_first, // No empty line if first position
+                        CommentType::SuffixComment => false,     // Adjacent to previous
+                    };
+
+                    add_newline = Self::format_node(*child, indent + 1, should_add_linebreak, out);
                 }
                 NodeType::Element => {
-                    add_newline = Self::format_node(child, indent + 1, add_newline, out);
+                    add_newline = Self::format_node(*child, indent + 1, add_newline, out);
                     is_first = false;
                 }
                 _ => {}
@@ -463,5 +531,63 @@ mod tests {
 
         // Comment should use INDENT (4 spaces)
         assert!(output.contains("    <!-- Top level comment -->"));
+    }
+
+    #[test]
+    fn test_prefix_comment_spacing() {
+        let input = r#"<?xml version="1.0" encoding="utf-8"?><resources><string name="first">value</string><!-- Regular comment --><string name="second">value</string></resources>"#;
+        let doc = Document::parse(input).unwrap();
+        let output = AndroidResourceFormatterAction::format_doc(&doc);
+
+        // Should have empty line before comment and be adjacent to next element
+        assert!(output.contains("    <string name=\"first\">value</string>\n\n    <!-- Regular comment -->\n    <string name=\"second\">value</string>"));
+    }
+
+    #[test]
+    fn test_first_position_comment_spacing() {
+        let input = r#"<?xml version="1.0" encoding="utf-8"?><resources><!-- First comment --><string name="first">value</string></resources>"#;
+        let doc = Document::parse(input).unwrap();
+        let output = AndroidResourceFormatterAction::format_doc(&doc);
+
+        // First position comment should not have empty line before
+        assert!(output.contains(
+            "<resources>\n    <!-- First comment -->\n    <string name=\"first\">value</string>"
+        ));
+    }
+
+    #[test]
+    fn test_suffix_comment_spacing() {
+        let input = r#"<?xml version="1.0" encoding="utf-8"?><resources><string name="first">value</string><!-- LINT.ThenChange(//path/to/file) --><string name="second">value</string></resources>"#;
+        let doc = Document::parse(input).unwrap();
+        let output = AndroidResourceFormatterAction::format_doc(&doc);
+
+        // Should be adjacent to previous element and have empty line after
+        assert!(output.contains("    <string name=\"first\">value</string>\n    <!-- LINT.ThenChange(//path/to/file) -->\n\n    <string name=\"second\">value</string>"));
+    }
+
+    #[test]
+    fn test_first_position_suffix_comment_spacing() {
+        let input = r#"<?xml version="1.0" encoding="utf-8"?><resources><!-- LINT.ThenChange(//path/to/file) --><string name="first">value</string></resources>"#;
+        let doc = Document::parse(input).unwrap();
+        let output = AndroidResourceFormatterAction::format_doc(&doc);
+
+        // First position suffix comment should not have empty line before, but should have empty line after
+        assert!(output.contains("<resources>\n    <!-- LINT.ThenChange(//path/to/file) -->\n\n    <string name=\"first\">value</string>"));
+    }
+
+    #[test]
+    fn test_comment_classification() {
+        assert!(matches!(
+            classify_comment("Regular comment"),
+            CommentType::PrefixComment
+        ));
+        assert!(matches!(
+            classify_comment("LINT.ThenChange(//file)"),
+            CommentType::SuffixComment
+        ));
+        assert!(matches!(
+            classify_comment("Another regular comment"),
+            CommentType::PrefixComment
+        ));
     }
 }
