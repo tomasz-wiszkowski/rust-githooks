@@ -129,7 +129,8 @@ fn process_comment(input: &str, target_indent: usize) -> String {
     indent(&result, target_indent)
 }
 
-const INDENT: &str = "  ";
+const INDENT: &str = "    ";
+const WRAP_INDENT: &str = "    ";
 const LINE_LIMIT: usize = 100;
 
 impl AndroidResourceFormatterAction {
@@ -210,7 +211,7 @@ impl AndroidResourceFormatterAction {
         out.push_str(&format!("{pad}<{tag}"));
         for a in &attrs {
             if multiline_attrs {
-                out.push_str(&format!("\n{pad}{INDENT}{INDENT}{a}"));
+                out.push_str(&format!("\n{pad}{WRAP_INDENT}{a}"));
             } else {
                 out.push_str(&format!(" {a}"));
             }
@@ -384,5 +385,83 @@ mod tests {
         let doc = Document::parse(input).unwrap();
         let output = AndroidResourceFormatterAction::format_doc(&doc);
         println!("{output}");
+    }
+
+    #[test]
+    fn test_wrap_indent_constants() {
+        assert_eq!(INDENT, "    ");
+        assert_eq!(WRAP_INDENT, "    ");
+        assert_eq!(INDENT.len(), 4);
+        assert_eq!(WRAP_INDENT.len(), 4);
+    }
+
+    #[test]
+    fn test_multiline_attributes_use_wrap_indent() {
+        let input = r#"<?xml version="1.0" encoding="utf-8"?><TextView xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/very_long_id_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Sample" />"#;
+        let doc = Document::parse(input).unwrap();
+        let output = AndroidResourceFormatterAction::format_doc(&doc);
+
+        // Should contain wrapped attributes with WRAP_INDENT (4 spaces)
+        assert!(output.contains("    android:id="));
+        assert!(output.contains("    android:layout_width="));
+        assert!(output.contains("    android:layout_height="));
+
+        // Should NOT contain double INDENT (8 spaces) for attributes
+        assert!(!output.contains("        android:id="));
+    }
+
+    #[test]
+    fn test_nested_element_indentation() {
+        let input = r#"<?xml version="1.0" encoding="utf-8"?><resources><string-array name="test"><item>value</item></string-array></resources>"#;
+        let doc = Document::parse(input).unwrap();
+        let output = AndroidResourceFormatterAction::format_doc(&doc);
+
+        // Nested string-array should use INDENT (4 spaces)
+        assert!(output.contains("    <string-array"));
+
+        // Nested item should use 2*INDENT (8 spaces)
+        assert!(output.contains("        <item>"));
+    }
+
+    #[test]
+    fn test_text_content_indentation() {
+        let input = r#"<?xml version="1.0" encoding="utf-8"?><resources><string name="test">Long text content that should be indented properly</string></resources>"#;
+        let doc = Document::parse(input).unwrap();
+        let output = AndroidResourceFormatterAction::format_doc(&doc);
+
+        // Text content should be inline for short content
+        assert!(output.contains(
+            r#"<string name="test">Long text content that should be indented properly</string>"#
+        ));
+    }
+
+    #[test]
+    fn test_inline_vs_multiline_attribute_threshold() {
+        // Test short attributes stay inline
+        let short_input =
+            r#"<?xml version="1.0" encoding="utf-8"?><item name="short" type="style" />"#;
+        let doc = Document::parse(short_input).unwrap();
+        let output = AndroidResourceFormatterAction::format_doc(&doc);
+
+        // Should be inline (no newlines before attributes)
+        assert!(output.contains(r#"<item name="short" type="style"/>"#));
+
+        // Test long attributes wrap
+        let long_input = r#"<?xml version="1.0" encoding="utf-8"?><TextView xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/very_long_identifier_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Very long text content here" />"#;
+        let doc_long = Document::parse(long_input).unwrap();
+        let output_long = AndroidResourceFormatterAction::format_doc(&doc_long);
+
+        // Should wrap (contains newlines before attributes)
+        assert!(output_long.contains("\n    android:id="));
+    }
+
+    #[test]
+    fn test_comment_indentation() {
+        let input = r#"<?xml version="1.0" encoding="utf-8"?><resources><!-- Top level comment --><string name="test">value</string></resources>"#;
+        let doc = Document::parse(input).unwrap();
+        let output = AndroidResourceFormatterAction::format_doc(&doc);
+
+        // Comment should use INDENT (4 spaces)
+        assert!(output.contains("    <!-- Top level comment -->"));
     }
 }
