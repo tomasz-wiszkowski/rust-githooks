@@ -98,6 +98,7 @@ fn dedent(input: &str, indent: usize) -> String {
     if lines.is_empty() {
         return String::new();
     }
+
     lines[0].trim().to_owned()
         + "\n"
         + &lines
@@ -152,7 +153,7 @@ fn process_comment(input: &str, target_indent: usize) -> String {
 
 const INDENT: &str = "    ";
 const WRAP_INDENT: &str = "    ";
-const LINE_LIMIT: usize = 100;
+const LINE_LIMIT: usize = 80;
 
 /// Classifies a comment based on its content
 fn classify_comment(text: &str) -> CommentType {
@@ -210,8 +211,13 @@ impl AndroidResourceFormatterAction {
 
                 let pad = INDENT.repeat(indent);
                 // TODO: reflow comments.
-                if text.contains('\n') {
-                    let text = pad.clone() + text;
+                if text.contains('\n') || (pad.len() + text.len() + 8) > LINE_LIMIT {
+                    // 8 accounts for "<!-- " and " -->" wrapper
+                    let text = if text.contains('\n') {
+                        pad.clone() + text
+                    } else {
+                        format!("{}{}", pad, text)
+                    };
                     let processed_text = process_comment(&text, pad.len());
                     out.push_str(&format!("{pad}<!--\n{processed_text}\n{pad}-->\n"));
                 } else {
@@ -247,7 +253,7 @@ impl AndroidResourceFormatterAction {
 
         // ---------- attributes ----------
         let mut attrs = Vec::new();
-        let mut inline_len = tag.len() + 2; // "<tag" + space
+        let mut inline_len = pad.len() + tag.len() + 2; // "<tag" + space
 
         if indent == 0 {
             for a in node.namespaces() {
@@ -286,10 +292,11 @@ impl AndroidResourceFormatterAction {
             .any(|c| matches!(c.node_type(), NodeType::Element | NodeType::Comment));
         let text_content = node.text().unwrap_or("").trim();
 
+        let total_len = pad.len() + text_content.len() + inline_len + 3;
         let inline_leaf = !has_elements_or_comments
             && !text_content.is_empty()
             && !text_content.contains('\n')
-            && (pad.len() + text_content.len() + inline_len + 3) < LINE_LIMIT;
+            && total_len < LINE_LIMIT;
 
         if inline_leaf {
             out.push_str(&Self::escape_text(text_content));
@@ -588,6 +595,22 @@ mod tests {
         assert!(matches!(
             classify_comment("Another regular comment"),
             CommentType::PrefixComment
+        ));
+    }
+
+    #[test]
+    fn test_long_comment_becomes_multiline() {
+        // Test that long single-line comments are converted to multiline format
+        let input = r#"<?xml version="1.0" encoding="utf-8"?><resources><!-- Additional space on the left and right side of the suggestions dropdown. --><string name="test">value</string></resources>"#;
+        let doc = Document::parse(input).unwrap();
+        let output = AndroidResourceFormatterAction::format_doc(&doc);
+
+        // Should be formatted as multiline with content at same level as markers
+        assert!(output.contains("    <!--\n    Additional space on the left and right side of the suggestions dropdown.\n    -->"));
+
+        // Should not remain as single line
+        assert!(!output.contains(
+            "<!-- Additional space on the left and right side of the suggestions dropdown. -->"
         ));
     }
 }
