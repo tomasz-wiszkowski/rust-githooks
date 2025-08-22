@@ -18,7 +18,7 @@
                     "runType": "perFile",
                     "priority": 0,
                     "filePattern": "\\.(c|cc|h|hh|cpp|hpp)$", 
-                    "shellCmd": ["clang-tidy", "-format-style=file", "-i", "<file>"]
+                    "shellCmd": ["clang-tidy", "-format-style=file", "--fix", "<file>"]
                 },
                 "GoFmt": {
                     "type": "shell",
@@ -41,7 +41,7 @@
                     "name": "Golang Module Tidy",
                     "runType": "perCommit",
                     "priority": 0,
-                    "filePattern": "^go.mod$", 
+                    "filePattern": "^\\.\\/go.mod$", 
                     "shellCmd": ["go", "mod", "tidy"]
                 },
                 "JavaImportFmt": {
@@ -51,6 +51,14 @@
                     "priority": 0,
                     "filePattern": "\\.java$", 
                     "shellCmd": ["google-java-format", "-a", "-r", "--skip-sorting-imports", "--fix-imports-only", "<file>"]
+                },
+                "JavaFmt": {
+                    "type": "shell",
+                    "name": "Java Format",
+                    "runType": "perFile",
+                    "priority": 0,
+                    "filePattern": "\\.java$", 
+                    "shellCmd": ["google-java-format", "-a", "-r", "--skip-sorting-imports", "<file>"]
                 },
                 "PythonFmt": {
                     "type": "shell",
@@ -66,7 +74,7 @@
                     "runType": "perFile",
                     "priority": 0,
                     "filePattern": "\\.rs$", 
-                    "shellCmd": ["rustfmt", "<file>"]
+                    "shellCmd": ["rustfmt", "<file>", "--edition=2021"]
                 },
                 "RustTidy": {
                     "type": "shell",
@@ -98,7 +106,7 @@
                     "name": "Chrome: GN CheckDeps",
                     "runType": "perCommit",
                     "priority": 0,
-                    "filePattern": "^(.*\\.gn[i]?|DEPS)$", 
+                    "filePattern": "(.*\\.gn[i]?|DEPS)$", 
                     "shellCmd": ["gn", "gen", "out/android.debug.arm", "--check"]
                 },
                 "ChromeFieldtrialFmt": {
@@ -114,8 +122,11 @@
                     "name": "Chrome: Histogram Config Format",
                     "runType": "perFile",
                     "priority": 0,
-                    "filePattern": "^(histograms|enums)\\.xml$", 
-                    "shellCmd": ["tools/metrics/histograms/validate_format.py", "<file>"]
+                    "filePattern": ".*\\/(histograms|enums)\\.xml$", 
+                    "shellCmd": ["tools/metrics/histograms/validate_format.py", "--xml_paths", "<file>"]
+                },
+                "AndroidXmlFmt": {
+                    "type": "androidResourceFormatter"
                 },
                 "ChromeNullMarked": {
                     "type": "chromeNullMarked"
