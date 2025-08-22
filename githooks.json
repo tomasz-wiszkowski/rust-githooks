@@ -116,6 +116,9 @@
                     "priority": 0,
                     "filePattern": "^(histograms|enums)\\.xml$", 
                     "shellCmd": ["tools/metrics/histograms/validate_format.py", "<file>"]
+                },
+                "ChromeNullMarked": {
+                    "type": "chromeNullMarked"
                 }
             }
         },

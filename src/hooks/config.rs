@@ -5,12 +5,14 @@ use std::collections::HashMap;
 use std::fs;
 use std::rc::Rc;
 
+use crate::hooks::action::ActionTraitInternal;
 use crate::hooks::Actions;
 
 use super::hook::Hook;
 use super::Action;
-use super::ActionTraitInternal;
+
 use super::AndroidResourceFormatterAction;
+use super::ChromeNullMarkedAction;
 use super::GerritChangeIdAction;
 use super::ShellAction;
 use super::SubmoduleAction;
@@ -58,6 +60,7 @@ enum V2ActionConfig {
     Gerrit(GerritChangeIdAction),
     Submodule(SubmoduleAction),
     AndroidResourceFormatter(AndroidResourceFormatterAction),
+    ChromeNullMarked(ChromeNullMarkedAction),
 }
 
 pub fn load_config_file() -> Result<HashMap<String, Hook>> {
@@ -121,10 +124,11 @@ fn from_v2_config(config: V2Config) -> Result<HashMap<String, Hook>> {
 
         for (hk, hv) in cv.actions.into_iter() {
             let action: Action = match hv {
-                V2ActionConfig::Shell(a) => Rc::new(RefCell::new(a)),
-                V2ActionConfig::Gerrit(a) => Rc::new(RefCell::new(a)),
-                V2ActionConfig::Submodule(a) => Rc::new(RefCell::new(a)),
                 V2ActionConfig::AndroidResourceFormatter(a) => Rc::new(RefCell::new(a)),
+                V2ActionConfig::ChromeNullMarked(a) => Rc::new(RefCell::new(a)),
+                V2ActionConfig::Gerrit(a) => Rc::new(RefCell::new(a)),
+                V2ActionConfig::Shell(a) => Rc::new(RefCell::new(a)),
+                V2ActionConfig::Submodule(a) => Rc::new(RefCell::new(a)),
             };
 
             anyhow::ensure!(!hk.is_empty(), "Invalid hook ID in category {}", ck);
