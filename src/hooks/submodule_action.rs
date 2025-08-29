@@ -67,6 +67,9 @@ impl ActionTrait for SubmoduleAction {
     }
 
     fn run(&self, items: &[Item], _args: &Vec<String>) -> Result<()> {
+        if !self.enabled {
+            return Ok(());
+        }
         items
             .into_iter()
             .map(|i| {
