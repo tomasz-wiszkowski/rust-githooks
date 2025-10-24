@@ -44,6 +44,7 @@ const SUFFIX_COMMENT_RULES: &[SuffixCommentRule] = &[SuffixCommentRule {
 }];
 
 static COMPILED_RULES: OnceLock<Vec<(String, Regex)>> = OnceLock::new();
+static ATTRIBUTE_ORDER: OnceLock<Vec<Regex>> = OnceLock::new();
 
 impl ActionTraitInternal for AndroidResourceFormatterAction {
     fn check_valid(&self) -> Result<()> {
@@ -173,6 +174,26 @@ fn classify_comment(text: &str) -> CommentType {
 }
 
 impl AndroidResourceFormatterAction {
+    fn get_attribute_sort_key(name: &str) -> usize {
+        let patterns = ATTRIBUTE_ORDER.get_or_init(|| {
+            vec![
+                Regex::new(r"^xmlns:.*").unwrap(),
+                Regex::new(r"^[^:]*$").unwrap(),
+                Regex::new(r"^android:id$").unwrap(),
+                Regex::new(r"^android:layout.*").unwrap(),
+                Regex::new(r"^android:.*").unwrap(),
+                Regex::new(r"^app:layout.*").unwrap(),
+                Regex::new(r"^app:.*").unwrap(),
+                Regex::new(r"^tools:.*").unwrap(),
+            ]
+        });
+
+        patterns
+            .iter()
+            .position(|p| p.is_match(name))
+            .unwrap_or(patterns.len())
+    }
+
     fn format_file(&self, infile: &str) -> Result<()> {
         let input = fs::read_to_string(infile).expect("Failed to read input.xml");
         let doc = Document::parse(&input).expect("Failed to parse XML");
@@ -253,14 +274,12 @@ impl AndroidResourceFormatterAction {
 
         // ---------- attributes ----------
         let mut attrs = Vec::new();
-        let mut inline_len = pad.len() + tag.len() + 2; // "<tag" + space
 
         if indent == 0 {
             for a in node.namespaces() {
                 let name = a.name().unwrap_or("");
                 let uri = a.uri();
                 let pair = format!("xmlns:{name}=\"{uri}\"");
-                inline_len += 1 + pair.len();
                 attrs.push(pair);
             }
         }
@@ -269,8 +288,18 @@ impl AndroidResourceFormatterAction {
             let name = Self::qualified_attr_name(node, &a);
             let escaped_val = Self::escape_attr(a.value());
             let pair = format!("{name}=\"{escaped_val}\"");
-            inline_len += 1 + pair.len();
             attrs.push(pair);
+        }
+
+        attrs.sort_by(|a, b| {
+            let a_name = a.split('=').next().unwrap_or("");
+            let b_name = b.split('=').next().unwrap_or("");
+            Self::get_attribute_sort_key(a_name).cmp(&Self::get_attribute_sort_key(b_name))
+        });
+
+        let mut inline_len = pad.len() + tag.len() + 2; // "<tag" + space
+        for a in &attrs {
+            inline_len += 1 + a.len();
         }
         let multiline_attrs = attrs.len() > 3 || inline_len > LINE_LIMIT;
 
