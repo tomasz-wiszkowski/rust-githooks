@@ -1,6 +1,7 @@
 mod action;
 mod android_resource_action;
 mod chrome_null_marked_action;
+mod commit_message_reflow_action;
 mod config;
 mod gerrit;
 mod hook;
@@ -15,6 +16,7 @@ pub use action::ActionTraitInternal;
 pub use action::Actions;
 use android_resource_action::AndroidResourceFormatterAction;
 use chrome_null_marked_action::ChromeNullMarkedAction;
+use commit_message_reflow_action::CommitMessageReflowAction;
 use gerrit::GerritChangeIdAction;
 pub use hook::Hook;
 pub use hooks::Hooks;

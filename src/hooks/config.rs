@@ -13,6 +13,7 @@ use super::Action;
 
 use super::AndroidResourceFormatterAction;
 use super::ChromeNullMarkedAction;
+use super::CommitMessageReflowAction;
 use super::GerritChangeIdAction;
 use super::ShellAction;
 use super::SubmoduleAction;
@@ -61,6 +62,7 @@ enum V2ActionConfig {
     Submodule(SubmoduleAction),
     AndroidResourceFormatter(AndroidResourceFormatterAction),
     ChromeNullMarked(ChromeNullMarkedAction),
+    CommitMessageReflow(CommitMessageReflowAction),
 }
 
 pub fn load_config_file() -> Result<HashMap<String, Hook>> {
@@ -126,6 +128,7 @@ fn from_v2_config(config: V2Config) -> Result<HashMap<String, Hook>> {
             let action: Action = match hv {
                 V2ActionConfig::AndroidResourceFormatter(a) => Rc::new(RefCell::new(a)),
                 V2ActionConfig::ChromeNullMarked(a) => Rc::new(RefCell::new(a)),
+                V2ActionConfig::CommitMessageReflow(a) => Rc::new(RefCell::new(a)),
                 V2ActionConfig::Gerrit(a) => Rc::new(RefCell::new(a)),
                 V2ActionConfig::Shell(a) => Rc::new(RefCell::new(a)),
                 V2ActionConfig::Submodule(a) => Rc::new(RefCell::new(a)),
