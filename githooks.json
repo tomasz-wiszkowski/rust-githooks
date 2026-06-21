@@ -84,87 +84,19 @@
                     "filePattern": "\\.rs$", 
                     "shellCmd": ["cargo", "fix", "--allow-dirty"]
                 },
-
-                "ChromeClFmt": {
-                    "type": "shell",
-                    "name": "Chrome: CL Format",
-                    "runType": "perCommit",
-                    "priority": -2,
-                    "filePattern": ".", 
-                    "shellCmd": ["git-cl", "format"]
-                },
-                "ChromeClPresubmit": {
-                    "type": "shell",
-                    "name": "Chrome: CL Presubmit",
-                    "runType": "perCommit",
-                    "priority": -1,
-                    "filePattern": ".", 
-                    "shellCmd": ["git-cl", "presubmit"]
-                },
-                "ChromeGnDeps": {
-                    "type": "shell",
-                    "name": "Chrome: GN CheckDeps",
-                    "runType": "perCommit",
-                    "priority": 0,
-                    "filePattern": "(.*\\.gn[i]?|DEPS)$", 
-                    "shellCmd": ["gn", "gen", "out/android.debug.arm", "--check"]
-                },
-                "ChromeFieldtrialFmt": {
-                    "type": "shell",
-                    "name": "Chrome: Fieldtrial Testing Config Format",
-                    "runType": "perFile",
-                    "priority": 0,
-                    "filePattern": "fieldtrial_testing_config\\.json",
-                    "shellCmd": ["python3", "testing/variations/PRESUBMIT.py", "<file>"]
-                },
-                "ChromeHistogramsFmt": {
-                    "type": "shell",
-                    "name": "Chrome: Histogram Config Format",
-                    "runType": "perFile",
-                    "priority": 0,
-                    "filePattern": ".*\\/(histograms|enums)\\.xml$", 
-                    "shellCmd": ["tools/metrics/histograms/validate_format.py", "--xml_paths", "<file>"]
-                },
                 "AndroidXmlFmt": {
                     "type": "androidResourceFormatter"
-                },
-                "ChromeNullMarked": {
-                    "type": "chromeNullMarked"
                 }
             }
         },
         "commit-msg": {
             "name": "Edit Commit Message hooks",
             "actions": {
-                "Reflow": {
-                    "type": "shell",
-                    "name": "Re-flow git commit message for Gerrit",
-                    "runType": "perCommit",
-                    "priority": 0,
-                    "filePattern": ".",
-                    "shellCmd": ["git", "format-commitmsg"]
-                },
-                "GerritChangeId": {
-                    "type": "shell",
-                    "name": "Gerrit: Add ChangeId tag",
-                    "runType": "perCommit",
-                    "priority": 0,
-                    "filePattern": ".", 
-                    "shellCmd": ["git-add-changeid", "<args>"]
-                },
                 "Submodule": {
                     "type": "submodule"
                 },
                 "GerritChangeIdNew": {
                     "type": "gerrit"
-                },
-                "PrintCommitMsg": {
-                    "type": "shell",
-                  "name": "Print commit message",
-                  "runType": "perCommit",
-                  "priority": 0,
-                  "filePattern": ".",
-                  "shellCmd": ["/home/ender/bin/test-commit-msg.sh", "<args>"]
                 }
             }
         }
