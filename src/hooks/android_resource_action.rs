@@ -466,6 +466,9 @@ impl ActionTrait for AndroidResourceFormatterAction {
     }
 
     fn run(&self, items: &[Item], _args: &Vec<String>) -> Result<()> {
+        if !self.enabled {
+            return Ok(());
+        }
         items
             .iter()
             .filter_map(|item| match item {
@@ -643,5 +646,14 @@ mod tests {
         assert!(!output.contains(
             "<!-- Additional space on the left and right side of the suggestions dropdown. -->"
         ));
+    }
+
+    #[test]
+    fn test_run_skips_when_disabled() {
+        let action = AndroidResourceFormatterAction::default();
+        assert!(!action.is_selected());
+
+        let items = vec![Item::File("foo/java/res/values/nonexistent.xml".to_string())];
+        assert!(action.run(&items, &Vec::new()).is_ok());
     }
 }
